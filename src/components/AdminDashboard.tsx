@@ -666,12 +666,14 @@ export default function AdminDashboard({
                           <input
                             type="checkbox"
                             checked={featured}
+                            disabled={!featured && books.some(b => b.featured && b.id !== editingBookId)}
                             onChange={(e) => setFeatured(e.target.checked)}
-                            className="w-4 h-4 text-brand-gold border-brand-gold/30 rounded focus:ring-brand-gold"
+                            className="w-4 h-4 text-brand-gold border-brand-gold/30 rounded focus:ring-brand-gold disabled:opacity-50"
                             id="form-featured"
                           />
-                          <label htmlFor="form-featured" className="text-xs font-bold text-brand-charcoal/70 font-sans-bengali cursor-pointer select-none">
+                          <label htmlFor="form-featured" className={`text-xs font-bold font-sans-bengali cursor-pointer select-none ${(!featured && books.some(b => b.featured && b.id !== editingBookId)) ? "text-brand-charcoal/30" : "text-brand-charcoal/70"}`}>
                             হোম পেজে ফিচার্ড স্লাইডারে রাখুন
+                            {(!featured && books.some(b => b.featured && b.id !== editingBookId)) && " (অন্য একটি বই ফিচার্ড আছে)"}
                           </label>
                         </div>
 

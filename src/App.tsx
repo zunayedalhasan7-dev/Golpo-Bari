@@ -164,8 +164,17 @@ export default function App() {
   // --- ACTIONS ---
   // Sync changed books list with client disk
   const syncAndSetBooks = (newCatalog: Book[]) => {
-    setBooks(newCatalog);
-    localStorage.setItem("gob_books_catalog", JSON.stringify(newCatalog));
+    // Ensure only one book is featured
+    const processedCatalog = newCatalog.map((b, index) => {
+      if (b.featured) {
+        // If this book is featured, check if it's the first one we find
+        const isFirstFeatured = newCatalog.findIndex(item => item.featured) === index;
+        return { ...b, featured: isFirstFeatured };
+      }
+      return b;
+    });
+    setBooks(processedCatalog);
+    localStorage.setItem("gob_books_catalog", JSON.stringify(processedCatalog));
   };
 
   const handleAddBook = (nBook: Book) => {
@@ -454,13 +463,31 @@ export default function App() {
               </div>
               <div className="flex-1 relative w-full flex justify-center lg:justify-end" id="hero-showcase">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 lg:w-96 lg:h-96 bg-brand-gold/20 rounded-full filter blur-[100px]" />
-                <div className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow">
-                  <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-60 z-10" />
-                  <img src={NOVELIST_AVATAR} className="w-full h-full object-cover opacity-80" alt="জুনায়েদ হাসান" />
-                  <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
-                    <h3 className="font-serif-bengali font-bold text-xl">জুনায়েদ হাসান</h3>
+                
+                {books.find(b => b.featured) ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow cursor-pointer"
+                    onClick={() => handleSelectBook(books.find(b => b.featured)!)}
+                    id="hero-featured-book"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-70 z-10" />
+                    <img src={books.find(b => b.featured)!.coverUrl} className="w-full h-full object-cover" alt={books.find(b => b.featured)!.title} referrerPolicy="no-referrer" />
+                    <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
+                      <p className="text-[10px] uppercase font-bold text-brand-gold tracking-widest">ফিচার্ড উপন্যাস</p>
+                      <h3 className="font-serif-bengali font-bold text-xl">{books.find(b => b.featured)!.title}</h3>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow">
+                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-60 z-10" />
+                    <img src={NOVELIST_AVATAR} className="w-full h-full object-cover opacity-80" alt="জুনায়েদ হাসান" />
+                    <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
+                      <h3 className="font-serif-bengali font-bold text-xl">জুনায়েদ হাসান</h3>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </section>
 
@@ -523,6 +550,34 @@ export default function App() {
                       মেম্বারশিপ পেমেন্ট করুন (৳২৯৯)
                     </button>
                   )}
+                </div>
+              </div>
+            </section>
+            
+            {/* About Me Section */ }
+            <section className="px-6 py-12 bg-brand-charcoal text-brand-beige relative overflow-hidden" id="home-about-me">
+              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-brand-gold/5 via-transparent to-transparent pointer-events-none" />
+              <div className="max-w-xl mx-auto text-center space-y-6 relative z-10">
+                <h2 className="text-2xl font-bold font-serif-bengali text-brand-gold flex items-center justify-center gap-3">
+                  <span className="w-8 h-px bg-brand-gold"></span>
+                  আমার কথা
+                  <span className="w-8 h-px bg-brand-gold"></span>
+                </h2>
+                
+                <div className="relative">
+                  <span className="text-4xl text-brand-gold/20 font-serif absolute -top-6 -left-2">"</span>
+                  <p className="text-lg font-serif-bengali leading-relaxed text-white/90">
+                    {NOVELIST_BIO}
+                  </p>
+                  <span className="text-4xl text-brand-gold/20 font-serif absolute -bottom-10 -right-2 transform rotate-180">"</span>
+                </div>
+                
+                <div className="pt-4 flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full mx-auto overflow-hidden border-2 border-brand-gold/30 p-1 bg-brand-charcoal">
+                    <img src={NOVELIST_AVATAR} className="w-full h-full object-cover rounded-full" alt="জুনায়েদ হাসান" />
+                  </div>
+                  <p className="mt-3 text-sm font-bold font-sans-bengali tracking-widest text-brand-gold uppercase">জুনায়েদ হাসান</p>
+                  <p className="text-[10px] text-brand-beige/50 font-sans-bengali mt-0.5">প্রতিষ্ঠাতা, গল্পবাড়ি</p>
                 </div>
               </div>
             </section>
