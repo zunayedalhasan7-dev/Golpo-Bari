@@ -1,0 +1,6 @@
+{
+  "name": "গল্পবাড়ি",
+  "description": "গল্পবাড়ি (GolpoBari) - প্রিমিয়াম বাংলা সাহিত্য ও গল্পচর্চার এক নান্দনিক ও সিনেমাটিক ডিজিটাল স্বর্গ।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

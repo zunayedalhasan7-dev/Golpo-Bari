@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Defensive safeguard to prevent "Uncaught TypeError: Cannot set property fetch of #<Window> which has only a getter"
+      // raised by third-party scripts, browser extensions, or environment overrides attempting to rewrite window.fetch.
+      try {
+        if (window && window.fetch) {
+          const originalFetch = window.fetch;
+          let activeFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            get() {
+              return activeFetch;
+            },
+            set(v) {
+              activeFetch = v;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch (err) {
+        console.warn("Safeguarding window.fetch descriptor failed:", err);
+      }
+    </script>
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
