@@ -482,32 +482,26 @@ export default function App() {
               <div className="flex-1 relative w-full flex justify-center lg:justify-end" id="hero-showcase">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 lg:w-96 lg:h-96 bg-brand-gold/20 rounded-full filter blur-[100px]" />
                 
-                {books.find(b => b.featured) ? (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow cursor-pointer"
-                    onClick={() => handleSelectBook(books.find(b => b.featured)!)}
-                    id="hero-featured-book"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-70 z-10" />
-                    <img src={books.find(b => b.featured)!.coverUrl} className="w-full h-full object-cover" alt={books.find(b => b.featured)!.title} referrerPolicy="no-referrer" />
-                    <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
-                      <p className="text-[10px] uppercase font-bold text-brand-gold tracking-widest">ফিচার্ড উপন্যাস</p>
-                      <h3 className="font-serif-bengali font-bold text-xl">{books.find(b => b.featured)!.title}</h3>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow">
-                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-60 z-10" />
-                    <img src={NOVELIST_AVATAR} className="w-full h-full object-cover opacity-80" alt="জুনায়েদ হাসান" />
-                    <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
-                      <h3 className="font-serif-bengali font-bold text-xl">জুনায়েদ হাসান</h3>
-                    </div>
+                <div className="relative w-64 h-80 lg:w-80 lg:h-[480px] bg-brand-charcoal rounded-3xl overflow-hidden border-4 border-white shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 cinematic-glow">
+                  <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-60 z-10" />
+                  <img src={NOVELIST_AVATAR} className="w-full h-full object-cover opacity-80" alt="জুনায়েদ হাসান" />
+                  <div className="absolute bottom-6 left-6 z-20 text-brand-beige">
+                    <h3 className="font-serif-bengali font-bold text-xl">জুনায়েদ হাসান</h3>
                   </div>
-                )}
+                </div>
               </div>
             </section>
+
+            {/* Featured Book Section */ }
+            {books.find(b => b.featured) && (
+              <section className="px-6 py-12 max-w-7xl mx-auto flex flex-col items-center" id="home-featured-book-section">
+                <div className="w-full max-w-sm bg-brand-charcoal rounded-3xl p-6 shadow-2xl transform hover:scale-103 transition-transform duration-300" onClick={() => handleSelectBook(books.find(b => b.featured)!)}>
+                  <p className="text-[10px] uppercase font-bold text-brand-gold tracking-widest mb-2">ফিচার্ড উপন্যাস</p>
+                  <img src={books.find(b => b.featured)!.coverUrl} className="w-full object-cover rounded-2xl mb-4" alt={books.find(b => b.featured)!.title} referrerPolicy="no-referrer" />
+                  <h3 className="font-serif-bengali font-bold text-xl text-white">{books.find(b => b.featured)!.title}</h3>
+                </div>
+              </section>
+            )}
 
             {/* VIP Pass Promo Section on Home page */}
             <section className="px-6 pb-20 max-w-7xl mx-auto" id="home-vip-promo">
