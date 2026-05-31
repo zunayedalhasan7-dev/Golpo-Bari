@@ -13,6 +13,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { BookOpen, Star, Award, Heart, CheckCircle, ChevronRight, Eye, Search, Settings, Calendar, User, ShoppingCart, HelpCircle, ArrowLeft, BookmarkCheck, X, RefreshCw } from "lucide-react";
 import { auth } from "./firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { db } from "./firebase";
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 export default function App() {
   const location = useLocation();
@@ -97,10 +99,16 @@ export default function App() {
   });
 
   // Core Books Catalog State
-  const [books, setBooks] = useState<Book[]>(() => {
-    const saved = localStorage.getItem("gob_books_catalog");
-    return saved ? JSON.parse(saved) : BOOK_DATA;
-  });
+  const [books, setBooks] = useState<Book[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, "books"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const dbBooks = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Book));
+      setBooks(dbBooks);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const path = location.pathname.substring(1) || "home";
@@ -172,39 +180,39 @@ export default function App() {
   }, []);
 
   // --- ACTIONS ---
-  // Sync changed books list with client disk
+  // Sync changed books list with client for local updates
   const syncAndSetBooks = (newCatalog: Book[]) => {
-    // Ensure only one book is featured
-    const processedCatalog = newCatalog.map((b, index) => {
-      if (b.featured) {
-        // If this book is featured, check if it's the first one we find
-        const isFirstFeatured = newCatalog.findIndex(item => item.featured) === index;
-        return { ...b, featured: isFirstFeatured };
-      }
-      return b;
-    });
-    setBooks(processedCatalog);
-    localStorage.setItem("gob_books_catalog", JSON.stringify(processedCatalog));
+    // Only update local state, Firestore operations are handled directly in CRUD
+    setBooks(newCatalog);
+    localStorage.setItem("gob_books_catalog", JSON.stringify(newCatalog));
   };
 
-  const handleAddBook = (nBook: Book) => {
-    const updated = [nBook, ...books];
-    syncAndSetBooks(updated);
-  };
-
-  const handleUpdateBook = (uBook: Book) => {
-    const updated = books.map((b) => (b.id === uBook.id ? uBook : b));
-    syncAndSetBooks(updated);
-    if (selectedBook?.id === uBook.id) {
-      setSelectedBook(uBook);
+  const handleAddBook = async (nBook: Book) => {
+    try {
+      await addDoc(collection(db, "books"), {
+        ...nBook,
+        timestamp: new Date()
+      });
+    } catch (e) {
+      console.error("Error adding book: ", e);
     }
   };
 
-  const handleDeleteBook = (id: string) => {
-    const updated = books.filter((b) => b.id !== id);
-    syncAndSetBooks(updated);
-    if (selectedBook?.id === id) {
-      setSelectedBook(null);
+  const handleUpdateBook = async (uBook: Book) => {
+    try {
+      const bookRef = doc(db, "books", uBook.id);
+      await updateDoc(bookRef, { ...uBook });
+    } catch (e) {
+      console.error("Error updating book: ", e);
+    }
+  };
+
+  const handleDeleteBook = async (id: string) => {
+    try {
+      const bookRef = doc(db, "books", id);
+      await deleteDoc(bookRef);
+    } catch (e) {
+      console.error("Error deleting book: ", e);
     }
   };
 

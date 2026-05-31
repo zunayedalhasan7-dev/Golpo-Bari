@@ -2,24 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics, isSupported } from "firebase/analytics";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAfzpb1lgEFrn18Z5VQpU4LnTvyxDRvczc",
-  authDomain: "golpobari-cced2.firebaseapp.com",
-  databaseURL: "https://golpobari-cced2-default-rtdb.firebaseio.com",
-  projectId: "golpobari-cced2",
-  storageBucket: "golpobari-cced2.firebasestorage.app",
-  messagingSenderId: "966698503373",
-  appId: "1:966698503373:web:76ff488918287e291fed84",
-  measurementId: "G-DCW2LLK7MT"
-};
+import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Services
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Safe Analytics Initialization
 export let analytics: any = null;
