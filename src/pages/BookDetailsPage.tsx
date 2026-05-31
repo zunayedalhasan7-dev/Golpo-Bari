@@ -1,7 +1,9 @@
-import React, { MouseEvent } from "react";
-import { Book } from "../types";
+import React, { MouseEvent, useState, useEffect } from "react";
+import { Book, Review } from "../types";
 import { motion } from "motion/react";
-import { ArrowLeft, Star, ShoppingCart, BookOpen, Clock, Layers, Calendar, Eye, Download, Sparkles, User, MessageSquare } from "lucide-react";
+import { ArrowLeft, Star, ShoppingCart, BookOpen, Clock, Layers, Calendar, Eye, Download, Sparkles, User, MessageSquare, Send } from "lucide-react";
+import { db } from "../firebase";
+import { collection, query, where, onSnapshot, addDoc, orderBy } from "firebase/firestore";
 
 interface BookDetailsPageProps {
   book: Book;
@@ -28,7 +30,30 @@ export default function BookDetailsPage({
   books,
   onSelectBookByRef,
 }: BookDetailsPageProps) {
-  
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [newRating, setNewRating] = useState(5);
+
+  useEffect(() => {
+    const q = query(collection(db, "books", book.id, "reviews"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedReviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+      setReviews(fetchedReviews);
+    });
+    return () => unsubscribe();
+  }, [book.id]);
+
+  const handleAddReview = async () => {
+    if (!newComment.trim()) return;
+    await addDoc(collection(db, "books", book.id, "reviews"), {
+      user: "Guest", // Should be actual user from Auth
+      rating: newRating,
+      comment: newComment,
+      date: new Date().toISOString()
+    });
+    setNewComment("");
+  };
+
   // Checking readability status
   const isBookReadable = () => {
     if (!book.isPremium) return true;
@@ -296,6 +321,48 @@ export default function BookDetailsPage({
 
           </div>
 
+        </div>
+
+        
+        {/* Review Section */}
+        <div className="mt-12 bg-white border border-brand-gold/15 p-6 md:p-10 rounded-3xl shadow-xs" id="book-reviews-section">
+          <h3 className="text-xl md:text-2xl font-black font-serif-bengali text-brand-charcoal border-b border-brand-gold/10 pb-3 mb-6">পাঠক প্রতিক্রিয়া ও রিভিউ</h3>
+          
+          {/* Add review form */}
+          <div className="mb-6 flex flex-col gap-3">
+             <textarea 
+               value={newComment}
+               onChange={(e) => setNewComment(e.target.value)}
+               placeholder="আপনার মতামত লিখুন..."
+               className="w-full p-3 border rounded-xl bg-brand-beige/20"
+             />
+             <div className="flex gap-4 items-center">
+                <input 
+                  type="number" 
+                  value={newRating}
+                  onChange={(e) => setNewRating(Number(e.target.value))}
+                  min="1" max="5"
+                  className="w-16 p-2 border rounded-xl bg-brand-beige/20"
+                />
+                <button
+                  onClick={handleAddReview}
+                  className="bg-brand-charcoal text-brand-gold px-6 py-2 rounded-xl flex items-center gap-2"
+                >
+                  <Send className="w-4 h-4"/> জমা দিন
+                </button>
+             </div>
+          </div>
+          
+          {/* Review list */}
+          <div className="space-y-4">
+            {reviews.map(review => (
+              <div key={review.id} className="p-4 border-b">
+                 <div className="flex justify-between font-bold text-sm">{review.user} <span className="text-brand-gold">{review.rating} ⭐</span></div>
+                 <p className="text-sm pt-1">{review.comment}</p>
+                 <p className="text-[10px] text-gray-400">{new Date(review.date).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Similar Books Section */}

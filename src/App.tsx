@@ -414,7 +414,7 @@ export default function App() {
                   গল্পের ভেতরেই<br/>আরেকটি পৃথিবী
                 </h1>
                 <p className="text-base md:text-lg text-brand-charcoal/60 font-sans-bengali font-light max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                  জুনায়েদ হাসানের লেখা অসামান্য উপন্যাসের এক অভিনব ডিজিটাল সংগ্রহ। এখনই পড়ুন আপনার পছন্দের গল্পগুলো, সম্পূর্ণ বিজ্ঞাপনমুক্ত পরিবেশে।
+                  আমার লেখা কিছু সাহিত্যের এক অভিনব ডিজিটাল সংগ্রহ হলো গল্পবাড়ি, এখনই পড়ুন আপনার পছন্দের গল্পগুলো, সম্পূর্ণ বিজ্ঞাপনমুক্ত পরিবেশে।
                 </p>
                 <div className="pt-6 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                   <button 
@@ -449,7 +449,7 @@ export default function App() {
             {/* Featured Book Section */ }
             {books.find(b => b.featured) && (
               <section className="px-6 py-12 max-w-7xl mx-auto flex flex-col items-center" id="home-featured-book-section">
-                <div className="w-full max-w-sm bg-brand-charcoal rounded-3xl p-6 shadow-2xl transform hover:scale-103 transition-transform duration-300" onClick={() => handleSelectBook(books.find(b => b.featured)!)}>
+                <div className="w-full max-w-sm bg-brand-charcoal rounded-3xl p-6 shadow-2xl transform hover:scale-103 transition-transform duration-300 border-2 border-brand-gold/50" onClick={() => handleSelectBook(books.find(b => b.featured)!)}>
                   <p className="text-[10px] uppercase font-bold text-brand-gold tracking-widest mb-2">ফিচার্ড উপন্যাস</p>
                   <img src={books.find(b => b.featured)!.coverUrl} className="w-full object-cover rounded-2xl mb-4" alt={books.find(b => b.featured)!.title} referrerPolicy="no-referrer" />
                   <h3 className="font-serif-bengali font-bold text-xl text-white">{books.find(b => b.featured)!.title}</h3>

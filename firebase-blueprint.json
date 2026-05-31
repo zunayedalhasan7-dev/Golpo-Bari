@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "Represents a book in the collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" }
+      }
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Represents a user review for a book",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookId": { "type": "string" },
+        "user": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["bookId", "user", "rating", "comment", "date"]
+    }
+  },
+  "firestore": {
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Book documents"
+    },
+    "/books/{bookId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Reviews for a specific book"
+    }
+  }
+}

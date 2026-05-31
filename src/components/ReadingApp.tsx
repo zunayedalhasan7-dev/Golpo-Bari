@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Book } from "../types";
 import { X, Bookmark, BookmarkCheck, Sun, Moon, Sparkles, Sliders, ChevronLeft, ChevronRight, ListOrdered } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -16,6 +16,8 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(0);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [showChaptersMenu, setShowChaptersMenu] = useState<boolean>(false);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const activeChapter = book.chapters[currentChapterIndex] || book.chapters[0];
 
@@ -60,14 +62,14 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
   const prevChapter = () => {
     if (currentChapterIndex > 0) {
       setCurrentChapterIndex((prev) => prev - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (containerRef.current) containerRef.current.scrollTop = 0;
     }
   };
 
   const nextChapter = () => {
     if (currentChapterIndex < book.chapters.length - 1) {
       setCurrentChapterIndex((prev) => prev + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (containerRef.current) containerRef.current.scrollTop = 0;
     }
   };
 
@@ -94,7 +96,7 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
   };
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto transition-colors duration-500 ease-out ${themeStyles[theme].bg} flex flex-col`} id="reader-container">
+    <div ref={containerRef} className={`fixed inset-0 z-50 overflow-y-auto transition-colors duration-500 ease-out ${themeStyles[theme].bg} flex flex-col`} id="reader-container">
       {/* Top sticky controls */}
       <nav className={`sticky top-0 z-50 border-b p-4 backdrop-blur-md flex items-center justify-between ${
         theme === "night" ? "bg-[rgb(18,18,18)]/90 border-brand-gold/10" : "bg-brand-beige/90 border-brand-gold/10"
@@ -322,7 +324,7 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
                         onClick={() => {
                           setCurrentChapterIndex(idx);
                           setShowChaptersMenu(false);
-                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          if (containerRef.current) containerRef.current.scrollTop = 0;
                         }}
                         className={`w-full text-left p-3.5 rounded-xl border text-xs font-sans-bengali flex items-center justify-between transition-colors ${
                           isSelected 

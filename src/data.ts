@@ -1,7 +1,7 @@
 import { Book } from "./types";
 
 export const NOVELIST_NAME = "জুনায়েদ হাসান";
-export const NOVELIST_BIO = "আমি গল্পবাড়ির প্রতিষ্ঠাতা ও প্রধান লেখক। আমার অনন্য শৈলী, বাস্তবমুখী ও ম্যাজিকাল গল্পগাথায় বাংলা কথাসাহিত্যে এক নতুন মাত্রা যোগ করতে চেয়েছি। গল্পবাড়ির প্রতিটি সৃষ্টি সরাসরি আমার কল্পনার গহীন কোণ থেকে উৎসারিত।";
+export const NOVELIST_BIO = "গল্পবাড়ি হলো বাংলা কথাসাহিত্যের এক নান্দনিক ও সিনেমাটিক ডিজিটাল স্বর্গরাজ্য। এখানে আমি আমার সমস্ত উপন্যাস, গল্পগাথা ও অপ্রকাশিত রোমাঞ্চসমূহ এক ছাদের নিচে এই ডিজিটাল প্ল্যাটফর্মে পরিবেশন করি।";
 export const NOVELIST_AVATAR = "https://i.postimg.cc/HkBsLtcB/Chat-GPT-Image-May-27-2026-01-37-15-PM.jpg";
 
 // Beautiful SVG inline covers created specifically for each novel to look premium and load instantly inside the applet!
