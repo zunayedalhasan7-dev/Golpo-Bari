@@ -329,7 +329,7 @@ export default function App() {
   // Filter & Search Engine
   const filteredBooks = books.filter((b) => {
     const matchesSearch = b.title.includes(searchQuery) || b.genre.includes(searchQuery) || b.shortDesc.includes(searchQuery);
-    const matchesGenre = genreFilter === "সব বিভাগ" || b.genre === genreFilter;
+    const matchesGenre = true;
     const matchesPrice = 
       priceFilter === "সব" || 
       (priceFilter === "ফ্রি" && !b.isPremium) || 
@@ -572,21 +572,6 @@ export default function App() {
                 />
               </div>
 
-              <div className="flex overflow-x-auto w-full md:w-auto gap-1.5 pb-0.5 md:pb-0 scrollbar-hide">
-                {["সব বিভাগ", "ম্যাজিকাল রিয়ালিজম", "রহস্য ও থ্রিলার", "ধ্রুপদী উপন্যাস"].map((gen) => (
-                  <button
-                    key={gen}
-                    onClick={() => setGenreFilter(gen)}
-                    className={`shrink-0 text-[10px] md:text-[11px] font-bold font-sans-bengali px-3.5 py-1.5 rounded-full border transition-all ${
-                      genreFilter === gen 
-                        ? "bg-brand-gold border-brand-gold text-brand-charcoal shadow-sm"
-                        : "bg-transparent border-brand-gold/15 text-brand-charcoal/65 hover:border-brand-gold/40"
-                    }`}
-                  >
-                    {gen}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Results Vertical List display */}
@@ -756,12 +741,21 @@ export default function App() {
             </button>
 
             {/* Top Cover Hero Section */}
-            <div className="w-full md:w-2/5 shrink-0 bg-brand-charcoal relative h-64 md:h-auto">
+            <div className="w-full md:w-2/5 shrink-0 bg-brand-charcoal relative h-64 md:h-auto flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 z-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-80" />
-              <div 
-                className="w-full h-full object-cover shadow-inner" 
-                dangerouslySetInnerHTML={{ __html: selectedBook.coverUrl }} 
-              />
+              {selectedBook.coverUrl && (selectedBook.coverUrl.startsWith("http") || selectedBook.coverUrl.startsWith("data:image") || selectedBook.coverUrl.includes(".") && !selectedBook.coverUrl.includes("<svg")) ? (
+                <img 
+                  src={selectedBook.coverUrl} 
+                  alt={selectedBook.title}
+                  className="w-full h-full object-cover shadow-inner"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div 
+                  className="w-full h-full object-cover shadow-inner" 
+                  dangerouslySetInnerHTML={{ __html: selectedBook.coverUrl }} 
+                />
+              )}
             </div>
 
             {/* Scrollable Details Section */}
@@ -809,8 +803,12 @@ export default function App() {
                         onClick={() => setSelectedBook(rb)}
                         className="snap-start shrink-0 w-24 space-y-2 cursor-pointer group"
                       >
-                         <div className="aspect-[3/4] rounded-lg overflow-hidden border border-brand-gold/10 shadow-sm relative group-hover:border-brand-gold/50 transition-colors">
-                           <div className="w-full h-full object-cover" dangerouslySetInnerHTML={{ __html: rb.coverUrl }} />
+                         <div className="aspect-[3/4] rounded-lg overflow-hidden border border-brand-gold/10 shadow-sm relative group-hover:border-brand-gold/50 transition-colors flex items-center justify-center bg-brand-charcoal">
+                           {rb.coverUrl && (rb.coverUrl.startsWith("http") || rb.coverUrl.startsWith("data:image") || rb.coverUrl.includes(".") && !rb.coverUrl.includes("<svg")) ? (
+                             <img src={rb.coverUrl} className="w-full h-full object-cover animate-fade-in" alt={rb.title} referrerPolicy="no-referrer" />
+                           ) : (
+                             <div className="w-full h-full object-cover animate-fade-in" dangerouslySetInnerHTML={{ __html: rb.coverUrl }} />
+                           )}
                          </div>
                          <h4 className="text-[10px] font-bold font-serif-bengali text-brand-charcoal line-clamp-1 group-hover:text-brand-gold truncate">{rb.title}</h4>
                       </div>
@@ -870,18 +868,34 @@ export default function App() {
                     </button>
                   )}
                   
-                  {!selectedBook.isPremium && (
+                  {isBookReadable(selectedBook) && (
                     <button
                       onClick={() => {
                         if (!currentUser) {
-                          setAuthMessage("বইটি অফলাইনে ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
+                          setAuthMessage("বইটি ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
                           setAuthModalMode("login");
                           setShowAuthModal(true);
                         } else {
-                          alert(`'${selectedBook.title}' ডাউনলোড শুরু হয়েছে...`);
+                          if (selectedBook.pdfUrl) {
+                            window.open(selectedBook.pdfUrl, "_blank");
+                          } else {
+                            // Dynamic simulated offline text file download fallback!
+                            const textHeader = `================================================\n  গল্পবাড়ি (GolpoBari) - প্রিমিয়াম সাহিত্য সংস্করণ\n  উপন্যাস: ${selectedBook.title}\n  লেখক: ${selectedBook.author}\n  ================================================\n\n  ${selectedBook.longDesc}\n\n  ------------------------------------------------\n` + 
+                              selectedBook.chapters.map((ch, idx) => `\nঅধ্যায় ${idx + 1}: ${ch.title}\n\n${ch.content}\n`).join("\n") +
+                              `\n\n------------------------------------------------\nপড়ার জন্য ধন্যবাদ! এই বইটি গল্পবাড়ি (GolpoBari) থেকে ডাউনলোড করা হয়েছে।\nকপিরাইট © জুনায়েদ হাসান। সকল স্বত্ব সংরক্ষিত।\n================================================`;
+                            const blob = new Blob([textHeader], { type: "text/plain;charset=utf-8" });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = `${selectedBook.titleEn ? selectedBook.titleEn.toLowerCase().replace(/\s+/g, "_") : "edition"}_book.txt`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                          }
                         }
                       }}
-                      className="flex-1 bg-white border border-brand-gold/30 hover:bg-brand-gold/10 text-brand-charcoal font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-sm"
+                      className="flex-1 bg-white border border-brand-gold/30 hover:bg-brand-gold/10 text-brand-charcoal font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
                     >
                       ডাউনলোড PDF
                     </button>
@@ -912,26 +926,28 @@ export default function App() {
               id="checkout-modal-panel"
             >
               {/* Top theme header colored dynamically */}
-              <div className="p-3 text-white flex items-center justify-between bg-[#E2136E] relative overflow-hidden">
+              <div className="p-3.5 text-white flex items-center justify-between bg-[#E2136E] relative overflow-hidden border-b border-white/10">
                 {/* Diagonal subtle stripes for realism */}
                 <div className="absolute inset-0 opacity-10 bg-[linear-gradient(45deg,#fff_25%,transparent_25%,transparent_50%,#fff_50%,#fff_75%,transparent_75%,transparent)] bg-[length:20px_20px]" />
                 
-                <div className="flex items-center space-x-2 z-10">
-                  <div className="bg-white/10 p-1 rounded-lg backdrop-blur-xs shrink-0">
+                <div className="flex items-center space-x-2.5 z-10">
+                  <div className="bg-white/15 p-1.5 rounded-xl backdrop-blur-xs shrink-0 flex items-center justify-center">
                     <ShoppingCart className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-xs md:text-sm font-serif-bengali leading-tight">গল্পবাড়ি নিরাপদ পেমেন্ট</h3>
-                    <p className="text-[8px] text-white/80 font-sans tracking-wide leading-none">SECURED GATEWAY</p>
+                    <h3 className="font-bold text-xs md:text-sm font-serif-bengali leading-tight">
+                      {checkoutPass ? "গল্পবাড়ি ভিআইপি মেম্বারশিপ পাস" : "গল্পবাড়ি নিরাপদ পেমেন্ট"}
+                    </h3>
+                    <p className="text-[7.5px] text-white/80 font-sans tracking-widest leading-none mt-0.5 font-bold uppercase">BKASH SECURED GATEWAY</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => { setCheckoutBook(null); setCheckoutPass(false); }}
-                  className="p-1 rounded-full bg-black/20 text-white hover:bg-black/40 transition-colors z-10 cursor-pointer"
+                  className="p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all z-10 cursor-pointer hover:rotate-90 duration-300 flex items-center justify-center"
                   id="checkout-close"
                   type="button"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 

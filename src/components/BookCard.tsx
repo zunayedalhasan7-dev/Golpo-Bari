@@ -22,6 +22,11 @@ export default function BookCard({ book, onSelect, onRead, onBuy, isLoggedIn, on
       onDownloadAuthNeeded();
       return;
     }
+
+    if (book.pdfUrl) {
+      window.open(book.pdfUrl, "_blank");
+      return;
+    }
     
     // Aesthetic simulated dynamic text file creation!
     const fileContent = `================================================
@@ -66,11 +71,19 @@ export default function BookCard({ book, onSelect, onRead, onBuy, isLoggedIn, on
       <div>
         {/* Cover Artwork Container */}
         <div className="relative overflow-hidden rounded-lg md:rounded-xl aspect-[3/4] mb-3 md:mb-5 bg-brand-sepia shadow-sm group-hover:shadow-md transition-all duration-300">
-          {/* Inject safe SVG directly */}
-          <div 
-            className="w-full h-full object-cover transform motion-safe:group-hover:scale-105 transition-transform duration-500 flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: book.coverUrl }}
-          />
+          {book.coverUrl && (book.coverUrl.startsWith("http") || book.coverUrl.startsWith("data:image") || book.coverUrl.includes(".") && !book.coverUrl.includes("<svg")) ? (
+            <img 
+              src={book.coverUrl}
+              alt={book.title}
+              className="w-full h-full object-cover transform motion-safe:group-hover:scale-105 transition-transform duration-500"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div 
+              className="w-full h-full object-cover transform motion-safe:group-hover:scale-105 transition-transform duration-500 flex items-center justify-center animate-fade-in"
+              dangerouslySetInnerHTML={{ __html: book.coverUrl }}
+            />
+          )}
 
           {/* Premium/Free badge */}
           <div className="absolute top-1.5 left-1.5 sm:top-3 sm:left-3 flex gap-1">

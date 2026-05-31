@@ -50,6 +50,8 @@ export default function AdminDashboard({
   const [readTime, setReadTime] = useState("২ ঘণ্টা");
   const [featured, setFeatured] = useState(false);
   const [popular, setPopular] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [customCoverUrl, setCustomCoverUrl] = useState("");
   
   // Dynamic Chapter Builder
   const [chapters, setChapters] = useState<Chapter[]>([
@@ -116,7 +118,7 @@ export default function AdminDashboard({
     }
 
     if (activeTab === "create") {
-      const coverUrl = generatePremiumSVG(title, genre);
+      const coverUrl = customCoverUrl.trim() || generatePremiumSVG(title, genre);
       const newBook: Book = {
         id: `custom-${Date.now()}`,
         title,
@@ -137,6 +139,7 @@ export default function AdminDashboard({
         popular,
         views: 120,
         chapters,
+        pdfUrl: pdfUrl.trim() || undefined,
       };
       
       onAddBook(newBook);
@@ -153,6 +156,7 @@ export default function AdminDashboard({
         genre,
         shortDesc,
         longDesc: longDesc || original.longDesc,
+        coverUrl: customCoverUrl.trim() || original.coverUrl || generatePremiumSVG(title, genre),
         isPremium,
         price: isPremium ? Number(price) : 0,
         pages: Number(pages),
@@ -160,6 +164,7 @@ export default function AdminDashboard({
         featured,
         popular,
         chapters,
+        pdfUrl: pdfUrl.trim() || undefined,
       };
 
       onUpdateBook(updatedBook);
@@ -183,6 +188,8 @@ export default function AdminDashboard({
     setFeatured(b.featured);
     setPopular(b.popular);
     setChapters(b.chapters);
+    setPdfUrl(b.pdfUrl || "");
+    setCustomCoverUrl((b.coverUrl && !b.coverUrl.startsWith("data:image/svg+xml")) ? b.coverUrl : "");
     setActiveTab("edit");
   };
 
@@ -199,6 +206,8 @@ export default function AdminDashboard({
     setReadTime("২ ঘণ্টা");
     setFeatured(false);
     setPopular(false);
+    setPdfUrl("");
+    setCustomCoverUrl("");
     setChapters([{ id: "ch-1", title: "১. উম্মোচন", content: "গল্প লিখুন..." }]);
   };
 
@@ -359,7 +368,13 @@ export default function AdminDashboard({
                       {books.map((b) => (
                         <div key={b.id} className="bg-white border border-brand-gold/15 rounded-2xl p-4 flex items-center justify-between shadow-xs card-hover-glow transition-all duration-300">
                           <div className="flex items-center space-x-4">
-                            <div className="w-12 h-16 rounded overflow-hidden aspect-[3/4] shadow bg-brand-charcoal" dangerouslySetInnerHTML={{ __html: b.coverUrl }} />
+                            <div className="w-12 h-16 rounded overflow-hidden aspect-[3/4] shadow bg-brand-charcoal shrink-0 flex items-center justify-center">
+                              {b.coverUrl && (b.coverUrl.startsWith("http") || b.coverUrl.startsWith("data:image") || b.coverUrl.includes(".") && !b.coverUrl.includes("<svg")) ? (
+                                <img src={b.coverUrl} className="w-full h-full object-cover" alt={b.title} referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full object-cover flex items-center justify-center" dangerouslySetInnerHTML={{ __html: b.coverUrl }} />
+                              )}
+                            </div>
                             <div>
                               <h5 className="font-bold text-sm md:text-base font-serif-bengali text-brand-charcoal flex items-center gap-2">
                                 {b.title}
@@ -550,6 +565,30 @@ export default function AdminDashboard({
                             onChange={(e) => setReadTime(e.target.value)}
                             className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-gold"
                             id="form-read-time"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বইয়ের কভার ছবির URL (ঐচ্ছিক):</label>
+                          <input
+                            type="url"
+                            placeholder="যেমন: https://example.com/cover.jpg"
+                            value={customCoverUrl}
+                            onChange={(e) => setCustomCoverUrl(e.target.value)}
+                            className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
+                            id="form-cover-url"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বইয়ের PDF ড্রাইভ লিংক (ঐচ্ছিক):</label>
+                          <input
+                            type="url"
+                            placeholder="যেমন: https://drive.google.com/..."
+                            value={pdfUrl}
+                            onChange={(e) => setPdfUrl(e.target.value)}
+                            className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
+                            id="form-pdf-url"
                           />
                         </div>
                       </div>
