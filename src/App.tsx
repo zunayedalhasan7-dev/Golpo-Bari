@@ -8,6 +8,7 @@ import ReadingApp from "./components/ReadingApp";
 import AdminDashboard from "./components/AdminDashboard";
 import AuthModal from "./components/AuthModal";
 import Footer from "./components/Footer";
+import BookDetailsPage from "./pages/BookDetailsPage";
 import { motion, AnimatePresence } from "motion/react";
 import { BookOpen, Star, Award, Heart, CheckCircle, ChevronRight, Eye, Search, Settings, Calendar, User, ShoppingCart, HelpCircle, ArrowLeft, BookmarkCheck, X, RefreshCw } from "lucide-react";
 import { auth } from "./firebase";
@@ -17,17 +18,25 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   // --- STATE ENGINES ---
-  const [currentPage, setCurrentPage] = useState<string>(location.pathname.substring(1) || "home");
-
-  useEffect(() => {
+  const [currentPage, setCurrentPage] = useState<string>(() => {
     const path = location.pathname.substring(1) || "home";
-    if (path !== currentPage) {
-      setCurrentPage(path);
-      setSelectedBook(null); // Clean stack on route change
+    if (path.startsWith("book/")) {
+      return "book-details";
     }
-  }, [location.pathname]);
+    return path;
+  });
 
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(() => {
+    const path = location.pathname.substring(1) || "home";
+    if (path.startsWith("book/")) {
+      const bookId = path.substring(5);
+      const saved = localStorage.getItem("gob_books_catalog");
+      const catalog: Book[] = saved ? JSON.parse(saved) : BOOK_DATA;
+      return catalog.find((b) => b.id === bookId) || null;
+    }
+    return null;
+  });
+
   const [readingBook, setReadingBook] = useState<Book | null>(null);
 
   // Authentication State Managers
@@ -92,6 +101,26 @@ export default function App() {
     const saved = localStorage.getItem("gob_books_catalog");
     return saved ? JSON.parse(saved) : BOOK_DATA;
   });
+
+  useEffect(() => {
+    const path = location.pathname.substring(1) || "home";
+    if (path.startsWith("book/")) {
+      const bookId = path.substring(5);
+      const foundBook = books.find((b) => b.id === bookId);
+      if (foundBook) {
+        setSelectedBook(foundBook);
+        setCurrentPage("book-details");
+      } else {
+        setCurrentPage("home");
+        setSelectedBook(null);
+      }
+    } else {
+      if (path !== currentPage) {
+        setCurrentPage(path);
+        setSelectedBook(null); // Clean stack on route change
+      }
+    }
+  }, [location.pathname, books]);
 
   // Interactive Payment Modal target
   const [checkoutBook, setCheckoutBook] = useState<Book | null>(null);
@@ -359,6 +388,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleSelectBook = (book: Book) => {
+    setSelectedBook(book);
+    navigateToPage(`book/${book.id}`);
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-between bg-brand-beige text-brand-charcoal font-sans-bengali selection:bg-brand-gold/30 selection:text-brand-charcoal" id="platform-root-viewport">
       <Navbar 
@@ -586,7 +620,7 @@ export default function App() {
                     <BookCard
                       key={b.id}
                       book={b}
-                      onSelect={setSelectedBook}
+                      onSelect={handleSelectBook}
                       onRead={handleReadRequest}
                       onBuy={setCheckoutBook}
                       isLoggedIn={!!currentUser}
@@ -689,7 +723,7 @@ export default function App() {
                 <BookCard
                   key={bp.id}
                   book={bp}
-                  onSelect={setSelectedBook}
+                  onSelect={handleSelectBook}
                   onRead={handleReadRequest}
                   onBuy={setCheckoutBook}
                   isLoggedIn={!!currentUser}
@@ -722,190 +756,36 @@ export default function App() {
               onRejectRequest={handleRejectPaymentRequest}
             />
           </motion.div>
+        ) : currentPage === "book-details" && selectedBook ? (
+          <motion.div
+            key="book-details"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="flex-1 flex flex-col pt-12 md:pt-16"
+          >
+            <BookDetailsPage
+              book={selectedBook}
+              onBack={() => {
+                navigate(-1);
+              }}
+              onRead={handleReadRequest}
+              onBuy={setCheckoutBook}
+              isLoggedIn={!!currentUser}
+              onDownloadAuthNeeded={() => {
+                setAuthMessage("বইটি অফলাইনে ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
+                setAuthModalMode("login");
+                setShowAuthModal(true);
+              }}
+              vIsVip={vIsVip}
+              unlockedBookIds={totalUnlockedBookIds}
+              currentUser={currentUser}
+              books={books}
+              onSelectBookByRef={handleSelectBook}
+            />
+          </motion.div>
         ) : null}
       </AnimatePresence>
-
-      {selectedBook && !readingBook && (
-        <div className="fixed inset-0 z-50 bg-brand-charcoal/90 backdrop-blur-lg flex items-center justify-center p-4 md:p-8" id="book-details-modal">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="w-full max-w-4xl bg-brand-beige border border-brand-gold/20 rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
-          >
-            <button
-              onClick={() => setSelectedBook(null)}
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-black text-white hover:text-brand-gold rounded-full transition-colors backdrop-blur-md"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Top Cover Hero Section */}
-            <div className="w-full md:w-2/5 shrink-0 bg-brand-charcoal relative h-64 md:h-auto flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 z-0 bg-gradient-to-t from-brand-charcoal to-transparent opacity-80" />
-              {selectedBook.coverUrl && (selectedBook.coverUrl.startsWith("http") || selectedBook.coverUrl.startsWith("data:image") || selectedBook.coverUrl.includes(".") && !selectedBook.coverUrl.includes("<svg")) ? (
-                <img 
-                  src={selectedBook.coverUrl} 
-                  alt={selectedBook.title}
-                  className="w-full h-full object-cover shadow-inner"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div 
-                  className="w-full h-full object-cover shadow-inner" 
-                  dangerouslySetInnerHTML={{ __html: selectedBook.coverUrl }} 
-                />
-              )}
-            </div>
-
-            {/* Scrollable Details Section */}
-            <div className="w-full md:w-3/5 p-8 md:p-10 flex flex-col justify-between overflow-y-auto">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-brand-gold tracking-widest">
-                  <span className="bg-brand-gold/10 border border-brand-gold/30 px-2 py-0.5 rounded-full text-brand-charcoal">{selectedBook.genre}</span>
-                  {selectedBook.isPremium ? (
-                    <span className="bg-brand-charcoal text-brand-gold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm"><Star className="w-3 h-3 fill-brand-gold text-brand-gold" /> প্রিমিয়াম</span>
-                  ) : (
-                    <span className="bg-white border border-brand-gold/20 text-brand-charcoal px-2 py-0.5 rounded-full">ফ্রি</span>
-                  )}
-                </div>
-
-                <h2 className="text-3xl md:text-5xl font-extrabold font-serif-bengali text-brand-charcoal tracking-tight leading-[1.1]">
-                  {selectedBook.title}
-                </h2>
-                
-                <p className="text-sm text-brand-charcoal/60 font-sans-bengali font-medium">
-                  লেখক: <span className="text-brand-charcoal font-bold">{selectedBook.author}</span>
-                </p>
-
-                <div className="flex items-center gap-4 text-xs font-semibold text-brand-charcoal/50 font-sans-bengali pt-2 pb-4 border-y border-brand-gold/10">
-                  <span className="text-brand-gold flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-brand-gold" />
-                    {selectedBook.rating || "5.0"}
-                  </span>
-                  <span>•</span>
-                  <span>{selectedBook.readTime} পাঠ কাল</span>
-                  <span>•</span>
-                  <span>{selectedBook.pages} পৃষ্ঠা</span>
-                </div>
-
-                <div className="text-sm text-brand-charcoal/70 leading-relaxed font-sans-bengali space-y-3 font-light text-justify pt-2">
-                  <p>{selectedBook.longDesc}</p>
-                </div>
-
-                {/* Related Books Netflix-style Carousel */}
-                <div className="pt-8">
-                  <h3 className="text-sm font-bold font-serif-bengali text-brand-charcoal mb-4">একই ধরনের আরও বই</h3>
-                  <div className="flex overflow-x-auto snap-x gap-3 pb-4 scrollbar-hide -mx-6 px-6">
-                    {books.filter(b => b.id !== selectedBook.id && (b.genre === selectedBook.genre || b.isPremium === selectedBook.isPremium)).slice(0, 4).map(rb => (
-                      <div 
-                        key={rb.id} 
-                        onClick={() => setSelectedBook(rb)}
-                        className="snap-start shrink-0 w-24 space-y-2 cursor-pointer group"
-                      >
-                         <div className="aspect-[3/4] rounded-lg overflow-hidden border border-brand-gold/10 shadow-sm relative group-hover:border-brand-gold/50 transition-colors flex items-center justify-center bg-brand-charcoal">
-                           {rb.coverUrl && (rb.coverUrl.startsWith("http") || rb.coverUrl.startsWith("data:image") || rb.coverUrl.includes(".") && !rb.coverUrl.includes("<svg")) ? (
-                             <img src={rb.coverUrl} className="w-full h-full object-cover animate-fade-in" alt={rb.title} referrerPolicy="no-referrer" />
-                           ) : (
-                             <div className="w-full h-full object-cover animate-fade-in" dangerouslySetInnerHTML={{ __html: rb.coverUrl }} />
-                           )}
-                         </div>
-                         <h4 className="text-[10px] font-bold font-serif-bengali text-brand-charcoal line-clamp-1 group-hover:text-brand-gold truncate">{rb.title}</h4>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="mt-8 pt-6 border-t border-brand-gold/10">
-                <div className="flex items-center gap-3">
-                  {selectedBook.isPremium ? (
-                    <>
-                      {!vIsVip && (
-                        <button
-                          onClick={() => {
-                            setCheckoutPass(true);
-                            setCheckoutBook(selectedBook);
-                            setSelectedBook(null);
-                          }}
-                          className="flex-1 bg-gradient-to-r from-amber-500 to-brand-gold text-brand-charcoal font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(245,158,11,0.25)] border border-brand-gold/20"
-                        >
-                          <Star className="w-4 h-4 text-brand-charcoal fill-brand-charcoal" />
-                          ভিআইপি পাস (৳২৯৯)
-                        </button>
-                      )}
-                      
-                      {!vIsVip && !unlockedBookIds.includes(selectedBook.id) && (
-                        <button
-                          onClick={() => {
-                            setCheckoutPass(false);
-                            setCheckoutBook(selectedBook);
-                            setSelectedBook(null);
-                          }}
-                          className="flex-1 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-gold font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(17,17,17,0.3)]"
-                        >
-                          <ShoppingCart className="w-4 h-4" />
-                          কিনুন (৳{selectedBook.price})
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => handleReadRequest(selectedBook)}
-                        className="flex-1 bg-brand-gold hover:bg-brand-gold-dark text-brand-charcoal font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(197,164,126,0.3)]"
-                      >
-                        <BookOpen className="w-4 h-4" />
-                        পড়ুন
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => handleReadRequest(selectedBook)}
-                      className="flex-[2] bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-gold font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(17,17,17,0.3)]"
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      পড়ুন
-                    </button>
-                  )}
-                  
-                  {isBookReadable(selectedBook) && (
-                    <button
-                      onClick={() => {
-                        if (!currentUser) {
-                          setAuthMessage("বইটি ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
-                          setAuthModalMode("login");
-                          setShowAuthModal(true);
-                        } else {
-                          if (selectedBook.pdfUrl) {
-                            window.open(selectedBook.pdfUrl, "_blank");
-                          } else {
-                            // Dynamic simulated offline text file download fallback!
-                            const textHeader = `================================================\n  গল্পবাড়ি (GolpoBari) - প্রিমিয়াম সাহিত্য সংস্করণ\n  উপন্যাস: ${selectedBook.title}\n  লেখক: ${selectedBook.author}\n  ================================================\n\n  ${selectedBook.longDesc}\n\n  ------------------------------------------------\n` + 
-                              selectedBook.chapters.map((ch, idx) => `\nঅধ্যায় ${idx + 1}: ${ch.title}\n\n${ch.content}\n`).join("\n") +
-                              `\n\n------------------------------------------------\nপড়ার জন্য ধন্যবাদ! এই বইটি গল্পবাড়ি (GolpoBari) থেকে ডাউনলোড করা হয়েছে।\nকপিরাইট © জুনায়েদ হাসান। সকল স্বত্ব সংরক্ষিত।\n================================================`;
-                            const blob = new Blob([textHeader], { type: "text/plain;charset=utf-8" });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement("a");
-                            link.href = url;
-                            link.download = `${selectedBook.titleEn ? selectedBook.titleEn.toLowerCase().replace(/\s+/g, "_") : "edition"}_book.txt`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(url);
-                          }
-                        }
-                      }}
-                      className="flex-1 bg-white border border-brand-gold/30 hover:bg-brand-gold/10 text-brand-charcoal font-bold py-3.5 px-4 rounded-full flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
-                    >
-                      ডাউনলোড PDF
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {readingBook && (
         <ReadingApp

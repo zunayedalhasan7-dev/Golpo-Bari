@@ -3,6 +3,7 @@ import { Book, Chapter } from "../types";
 import { NOVELIST_NAME } from "../data";
 import { X, Plus, Trash, Edit, Check, ShieldCheck, Key, RefreshCw, Star, StarOff, Sparkles, BookOpen, Award } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { convertBijoyToUnicode } from "bijoy2unicode";
 
 interface AdminDashboardProps {
   books: Book[];
@@ -52,6 +53,19 @@ export default function AdminDashboard({
   const [popular, setPopular] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [customCoverUrl, setCustomCoverUrl] = useState("");
+  
+  // Custom Bijoy to Unicode translator helper
+  const fixBijoyText = (text: string): string => {
+    if (!text) return "";
+    try {
+      // Direct call to high-fidelity bijoy2unicode converter
+      const result = convertBijoyToUnicode(text);
+      return result || text;
+    } catch (e) {
+      console.error("Error in Bijoy conversion: ", e);
+      return text;
+    }
+  };
   
   // Dynamic Chapter Builder
   const [chapters, setChapters] = useState<Chapter[]>([
@@ -516,7 +530,20 @@ export default function AdminDashboard({
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">উপন্যাসের নাম (বাংলায়):</label>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">উপন্যাসের নাম (বাংলায়):</label>
+                            {title && (
+                              <button
+                                type="button"
+                                onClick={() => setTitle(fixBijoyText(title))}
+                                className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                                title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                বিজয় ঠিক করুন 🪄
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="text"
                             required
@@ -664,7 +691,20 @@ export default function AdminDashboard({
 
                       <div className="space-y-4 border-t border-brand-gold/10 pt-4">
                         <div>
-                          <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">সংক্ষিপ্ত কভার মকআপ বিবরণ (Emotional Line):</label>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">সংক্ষিপ্ত কভার মকআপ বিবরণ (Emotional Line):</label>
+                            {shortDesc && (
+                              <button
+                                type="button"
+                                onClick={() => setShortDesc(fixBijoyText(shortDesc))}
+                                className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                                title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                বিজয় ঠিক করুন 🪄
+                              </button>
+                            )}
+                          </div>
                           <input
                             type="text"
                             required
@@ -677,7 +717,20 @@ export default function AdminDashboard({
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">মূল সিনোপসিস বা দীর্ঘ গদ্য বিবরণ:</label>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">মূল সিনোপসিস বা দীর্ঘ গদ্য বিবরণ:</label>
+                            {longDesc && (
+                              <button
+                                type="button"
+                                onClick={() => setLongDesc(fixBijoyText(longDesc))}
+                                className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                                title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                বিজয় ঠিক করুন 🪄
+                              </button>
+                            )}
+                          </div>
                           <textarea
                             rows={4}
                             placeholder="এখানে সমস্ত সিনোপসিস লিখুন বা কপি করে বসিয়ে দিন..."
@@ -691,20 +744,37 @@ export default function AdminDashboard({
 
                       {/* Chapters Builder Sections */}
                       <div className="space-y-4 border-t border-brand-gold/15 pt-6 bg-white p-4 rounded-2xl border border-brand-gold/10">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                           <h5 className="font-bold text-xs uppercase text-brand-gold tracking-widest flex items-center gap-1">
                             <Sparkles className="w-3.5 h-3.5" />
                             অধ্যায়সমূহ ও রচনা সংস্করণ
                           </h5>
-                          <button
-                            type="button"
-                            onClick={handleAddChapter}
-                            className="bg-brand-charcoal hover:bg-brand-charcoal/80 text-brand-gold px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans-bengali flex items-center gap-1 transition-all"
-                            id="add-chapter-form-btn"
-                          >
-                            <Plus className="w-3 h-3" />
-                            নতুন অধ্যায় বানান
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setChapters(chapters.map(ch => ({
+                                  ...ch,
+                                  title: fixBijoyText(ch.title),
+                                  content: fixBijoyText(ch.content)
+                                })));
+                              }}
+                              className="bg-amber-100/80 hover:bg-amber-100 text-amber-950 border border-brand-gold/25 px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans-bengali flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                              title="সব অধ্যায়ের বিজয় কীবোর্ডের এলোমেলো লেখা একসাথে ঠিক করুন"
+                            >
+                              <Sparkles className="w-2.5 h-2.5 text-amber-800 animate-bounce" />
+                              সব লেখা ঠিক করুন 🪄
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddChapter}
+                              className="bg-brand-charcoal hover:bg-brand-charcoal/80 text-brand-gold px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans-bengali flex items-center gap-1 transition-all cursor-pointer"
+                              id="add-chapter-form-btn"
+                            >
+                              <Plus className="w-3 h-3" />
+                              নতুন অধ্যায় বানান
+                            </button>
+                          </div>
                         </div>
 
                         <div className="space-y-4">
@@ -724,23 +794,55 @@ export default function AdminDashboard({
                                 )}
                               </div>
 
-                              <input
-                                type="text"
-                                value={ch.title}
-                                onChange={(e) => handleChapterTitleChange(ch.id, e.target.value)}
-                                placeholder="যেমন: ১. ঝড়ের প্রথম স্পর্শ"
-                                className="w-full bg-white border border-brand-gold/10 rounded-lg py-1.5 px-3.5 text-xs font-bold font-serif-bengali text-brand-charcoal focus:outline-none"
-                                id={`chapter-title-input-${ch.id}`}
-                              />
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="block text-[10px] font-bold text-brand-charcoal/60 font-sans-bengali">অধ্যায়ের নাম (বাংলায়):</label>
+                                  {ch.title && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleChapterTitleChange(ch.id, fixBijoyText(ch.title))}
+                                      className="text-[9px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                                      title="এই অধ্যায়ের শিরোনামের বিজয় টাইপিং ঠিক করুন"
+                                    >
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      বিজয় ঠিক করুন 🪄
+                                    </button>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={ch.title}
+                                  onChange={(e) => handleChapterTitleChange(ch.id, e.target.value)}
+                                  placeholder="যেমন: ১. ঝড়ের প্রথম স্পর্শ"
+                                  className="w-full bg-white border border-brand-gold/10 rounded-lg py-1.5 px-3.5 text-xs font-bold font-serif-bengali text-brand-charcoal focus:outline-none"
+                                  id={`chapter-title-input-${ch.id}`}
+                                />
+                              </div>
 
-                              <textarea
-                                rows={4}
-                                value={ch.content}
-                                onChange={(e) => handleChapterContentChange(ch.id, e.target.value)}
-                                placeholder="এই অধ্যায়ের মূল গল্প লিখুন..."
-                                className="w-full bg-white border border-brand-gold/10 rounded-lg py-2 px-3.5 text-xs font-serif-bengali text-brand-charcoal focus:outline-none leading-relaxed"
-                                id={`chapter-content-input-${ch.id}`}
-                              />
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="block text-[10px] font-bold text-brand-charcoal/60 font-sans-bengali">অধ্যায়ের মূল গল্প (বাংলায়):</label>
+                                  {ch.content && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleChapterContentChange(ch.id, fixBijoyText(ch.content))}
+                                      className="text-[9px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                                      title="এই অধ্যায়ের রচনার বিজয় টাইপিং ঠিক করুন"
+                                    >
+                                      <Sparkles className="w-2.5 h-2.5" />
+                                      বিজয় ঠিক করুন 🪄
+                                    </button>
+                                  )}
+                                </div>
+                                <textarea
+                                  rows={12}
+                                  value={ch.content}
+                                  onChange={(e) => handleChapterContentChange(ch.id, e.target.value)}
+                                  placeholder="এই অধ্যায়ের মূল গল্প লিখুন..."
+                                  className="w-full bg-white border border-brand-gold/10 rounded-lg py-3 px-3.5 text-xs font-serif-bengali text-brand-charcoal focus:outline-none leading-relaxed min-h-[250px]"
+                                  id={`chapter-content-input-${ch.id}`}
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>
