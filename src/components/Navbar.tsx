@@ -4,17 +4,13 @@ import { BookOpen, Award, Home, Search, ShieldAlert, Heart, User, LogOut, MoreVe
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
 interface NavbarProps {
-  onAdminOpen: () => void;
-  currentUser: { name: string; email: string } | null;
-  onLoginClick: () => void;
-  onLogoutClick: () => void;
   navigateToPage: (page: string) => void;
   currentPage: string;
   vIsVip?: boolean;
   onVipCheckout?: () => void;
 }
 
-export default function Navbar({ onAdminOpen, currentUser, onLoginClick, onLogoutClick, navigateToPage, currentPage, vIsVip = false, onVipCheckout }: NavbarProps) {
+export default function Navbar({ navigateToPage, currentPage, vIsVip = false, onVipCheckout }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -85,49 +81,6 @@ export default function Navbar({ onAdminOpen, currentUser, onLoginClick, onLogou
                 );
               })}
             </nav>
-
-            {/* Auth Button/Indicator (Desktop & Mobile header) */}
-            <div className="flex items-center gap-3">
-              {currentUser ? (
-                <div className="flex items-center gap-2 border border-brand-gold/15 bg-white/40 py-1 px-3 rounded-full shadow-sm">
-                  <div className="flex flex-col text-right leading-none">
-                    <span className="text-[9px] text-brand-charcoal/40 font-bold uppercase">স্বাগতম</span>
-                    <span className="text-[11px] font-bold text-brand-charcoal/80 font-sans-bengali truncate max-w-[80px]" title={currentUser.name}>
-                      {currentUser.name}
-                    </span>
-                  </div>
-                  
-                  {currentUser.email === "zunayedalhasan7@gmail.com" && (
-                    <button
-                      onClick={onAdminOpen}
-                      className="p-1 rounded-full bg-brand-charcoal/10 hover:bg-brand-charcoal/20 text-brand-charcoal transition-all flex items-center justify-center"
-                      title="অ্যাডমিন প্যানেল"
-                      id="navbar-admin-bypass-btn"
-                    >
-                      <ShieldAlert className="w-4 h-4 text-brand-gold fill-brand-gold" />
-                    </button>
-                  )}
-
-                  <button
-                    onClick={onLogoutClick}
-                    className="p-1 rounded-full hover:bg-red-500/10 text-red-600 transition-all"
-                    title="লগআউট করুন"
-                    id="nav-logout-btn"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={onLoginClick}
-                  className="py-1.5 px-4 rounded-full bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-gold border border-brand-gold/30 text-xs font-bold font-sans-bengali transition-all duration-300 shadow-sm flex items-center gap-1.5 transform active:scale-95"
-                  id="nav-login-btn"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  লগইন
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </header>
@@ -169,20 +122,7 @@ export default function Navbar({ onAdminOpen, currentUser, onLoginClick, onLogou
                 );
               })}
 
-              {currentUser && currentUser.email === "zunayedalhasan7@gmail.com" && (
-                <div className="border-t border-white/10 my-1.5 pt-1.5">
-                  <button
-                    onClick={() => {
-                      onAdminOpen();
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl transition-all font-sans-bengali text-xs text-brand-gold hover:bg-white/5 active:bg-white/10"
-                  >
-                    <ShieldAlert className="w-4 h-4 text-brand-gold fill-brand-gold shrink-0" />
-                    <span className="font-bold">রাইটার প্যানেল</span>
-                  </button>
-                </div>
-              )}
+              {/* Mobile menu items render here */}
             </motion.div>
           )}
         </AnimatePresence>

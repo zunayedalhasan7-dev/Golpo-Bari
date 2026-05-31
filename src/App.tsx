@@ -12,7 +12,6 @@ import BookDetailsPage from "./pages/BookDetailsPage";
 import { motion, AnimatePresence } from "motion/react";
 import { BookOpen, Star, Award, Heart, CheckCircle, ChevronRight, Eye, Search, Settings, Calendar, User, ShoppingCart, HelpCircle, ArrowLeft, BookmarkCheck, X, RefreshCw } from "lucide-react";
 import { auth } from "./firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
 import { db } from "./firebase";
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
@@ -41,12 +40,6 @@ export default function App() {
 
   const [readingBook, setReadingBook] = useState<Book | null>(null);
 
-  // Authentication State Managers
-  const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(() => {
-    const saved = localStorage.getItem("gob_current_user");
-    return saved ? JSON.parse(saved) : null;
-  });
-
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [genreFilter, setGenreFilter] = useState<string>("সব বিভাগ");
   const [priceFilter, setPriceFilter] = useState<string>("সব"); // "সব" | "ফ্রি" | "প্রিমিয়াম"
@@ -64,7 +57,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : {};
   });
 
-  const currentEmail = currentUser?.email || "guest@gopobari.com";
+  const currentEmail = "guest@gopobari.com";
   const currentVipStatus = userVipStatuses[currentEmail] || (localStorage.getItem("gob_vip_user") === "true" ? "approved" : "none");
 
   const [vIsVip, setVIsVip] = useState<boolean>(() => {
@@ -79,7 +72,7 @@ export default function App() {
     const updated = { ...userVipStatuses, [email]: status };
     setUserVipStatuses(updated);
     localStorage.setItem("gob_user_vip_statuses", JSON.stringify(updated));
-    if (email === (currentUser?.email || "guest@gopobari.com")) {
+    if (email === currentEmail) {
       setVIsVip(status === "approved");
     }
   };
@@ -142,6 +135,7 @@ export default function App() {
   const [hasCopied, setHasCopied] = useState<boolean>(false);
 
   // Authentication State Managers
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
   const [authMessage, setAuthMessage] = useState<string>("");
@@ -160,26 +154,6 @@ export default function App() {
     setAuthorBio(newBio);
     localStorage.setItem("gob_author_bio", newBio);
   };
-
-  // Synchronize dynamic Firebase Auth session states
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        const displayName = firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "সদস্য";
-        const email = firebaseUser.email || "";
-        const userData = { name: displayName, email };
-        setCurrentUser(userData);
-        localStorage.setItem("gob_current_user", JSON.stringify(userData));
-      } else {
-        setCurrentUser(null);
-        localStorage.removeItem("gob_current_user");
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // --- ACTIONS ---
   // Sync changed books list with client for local updates
   const syncAndSetBooks = (newCatalog: Book[]) => {
     // Only update local state, Firestore operations are handled directly in CRUD
@@ -218,7 +192,7 @@ export default function App() {
 
   // Derived unlockedBookIds of the logged-in user based on approved payment requests
   const userApprovedBooks = paymentRequests
-    .filter((req) => req.userEmail === (currentUser?.email || "guest@gopobari.com") && req.itemType === "book" && req.status === "approved")
+    .filter((req) => req.userEmail === currentEmail && req.itemType === "book" && req.status === "approved")
     .map((req) => req.itemId)
     .filter(Boolean) as string[];
 
@@ -233,12 +207,6 @@ export default function App() {
 
   // Open books for immersive reading
   const handleReadRequest = (book: Book) => {
-    if (!currentUser) {
-      setAuthMessage("উপন্যাসটি সম্পূর্ণ পড়তে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
-      setAuthModalMode("login");
-      setShowAuthModal(true);
-      return;
-    }
     if (isBookReadable(book)) {
       setReadingBook(book);
     } else {
@@ -248,12 +216,6 @@ export default function App() {
   };
 
   const handleDownloadReq = (book: Book) => {
-    if (!currentUser) {
-      setAuthMessage("বই ডাউনলোড করার জন্য অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
-      setAuthModalMode("login");
-      setShowAuthModal(true);
-      return;
-    }
     // Aesthetic simulated text file download for cover/details
     const fileContent = `================================================
 গল্পবাড়ি (GolpoBari) - প্রিমিয়াম সংস্করণ
@@ -298,7 +260,7 @@ export default function App() {
     // Capture payment details
     const newRequest = {
       id: "req_" + Date.now(),
-      userEmail: currentUser?.email || "guest@gopobari.com",
+      userEmail: currentEmail,
       name: checkoutName,
       phone: phoneNumber,
       trxId: transactionId,
@@ -318,7 +280,7 @@ export default function App() {
 
       if (checkoutPass) {
         // Set user to VIP pending
-        updateUserVipStatus(currentUser?.email || "guest@gopobari.com", "pending");
+        updateUserVipStatus(currentEmail, "pending");
       } else if (checkoutBook) {
         // For individual books, let's store it as pending under the user's book claims
         const savedClaims = JSON.parse(localStorage.getItem("gob_book_claims") || "{}");
@@ -350,7 +312,7 @@ export default function App() {
           savedClaims[approvedReq.itemId] = "approved";
           localStorage.setItem("gob_book_claims", JSON.stringify(savedClaims));
 
-          if (approvedReq.userEmail === (currentUser?.email || "guest@gopobari.com")) {
+          if (approvedReq.userEmail === currentEmail) {
             const updatedIds = Array.from(new Set([...unlockedBookIds, approvedReq.itemId]));
             setUnlockedBookIds(updatedIds);
             localStorage.setItem("gob_unlocked_books", JSON.stringify(updatedIds));
@@ -423,14 +385,6 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-brand-beige text-brand-charcoal font-sans-bengali selection:bg-brand-gold/30 selection:text-brand-charcoal" id="platform-root-viewport">
       <Navbar 
-        onAdminOpen={() => navigateToPage("admin")} 
-        currentUser={currentUser} 
-        onLoginClick={() => {
-          setAuthModalMode("login");
-          setAuthMessage("");
-          setShowAuthModal(true);
-        }} 
-        onLogoutClick={() => signOut(auth)}
         navigateToPage={navigateToPage}
         currentPage={currentPage}
         vIsVip={vIsVip}
@@ -690,7 +644,7 @@ export default function App() {
                       onSelect={handleSelectBook}
                       onRead={handleReadRequest}
                       onBuy={setCheckoutBook}
-                      isLoggedIn={!!currentUser}
+                      isLoggedIn={true}
                       onDownloadAuthNeeded={() => {
                         setAuthMessage("বইটি অফলাইনে ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
                         setAuthModalMode("login");
@@ -793,7 +747,7 @@ export default function App() {
                   onSelect={handleSelectBook}
                   onRead={handleReadRequest}
                   onBuy={setCheckoutBook}
-                  isLoggedIn={!!currentUser}
+                  isLoggedIn={true}
                   onDownloadAuthNeeded={() => {
                     setAuthMessage("বইটি অফলাইনে ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
                     setAuthModalMode("login");
@@ -817,7 +771,7 @@ export default function App() {
               onUpdateBook={handleUpdateBook}
               onDeleteBook={handleDeleteBook}
               onClose={() => navigateToPage("home")}
-              isAdmin={currentUser?.email === "zunayedalhasan7@gmail.com"}
+              isAdmin={isAdmin}
               paymentRequests={paymentRequests}
               onApproveRequest={handleApprovePaymentRequest}
               onRejectRequest={handleRejectPaymentRequest}
@@ -840,7 +794,7 @@ export default function App() {
               }}
               onRead={handleReadRequest}
               onBuy={setCheckoutBook}
-              isLoggedIn={!!currentUser}
+              isLoggedIn={true}
               onDownloadAuthNeeded={() => {
                 setAuthMessage("বইটি অফলাইনে ডাউনলোড করতে অনুগ্রহ করে প্রথমে গল্পবাড়িতে লগইন করুন।");
                 setAuthModalMode("login");
@@ -848,7 +802,6 @@ export default function App() {
               }}
               vIsVip={vIsVip}
               unlockedBookIds={totalUnlockedBookIds}
-              currentUser={currentUser}
               books={books}
               onSelectBookByRef={handleSelectBook}
             />
@@ -1074,9 +1027,9 @@ export default function App() {
             message={authMessage}
             onClose={() => setShowAuthModal(false)}
             onLoginSuccess={(name, email) => {
-              setCurrentUser({ name, email });
               setShowAuthModal(false);
               if (email === "zunayedalhasan7@gmail.com") {
+                setIsAdmin(true);
                 navigateToPage("admin");
               }
             }}

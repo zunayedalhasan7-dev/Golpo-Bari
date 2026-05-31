@@ -87,7 +87,7 @@ export default function Footer({ onPageChange, onAdminOpen }: FooterProps) {
 
       {/* Credit Section */}
       <div className="max-w-7xl mx-auto border-t border-brand-gold/10 mt-6 sm:mt-10 pt-4 flex flex-col sm:flex-row items-center justify-between text-[10px] sm:text-[11px] text-brand-beige/45 font-sans-bengali gap-2.5">
-        <p>কপিরাইট © ২০২৬ গল্পবাড়ি। জুনায়েদ হাসান কর্তৃক সর্বস্বত্ব সংরক্ষিত।</p>
+        <p>কপিরাইট © ২০২৬ গল্পবাড়ি। <button onClick={onAdminOpen} className="hover:text-brand-gold hover:underline">জুনায়েদ হাসান</button> কর্তৃক সর্বস্বত্ব সংরক্ষিত।</p>
         <div className="flex items-center gap-1.5">
           <span>সাহিত্যরস ছড়িয়ে দিতে সচেষ্ট</span>
           <Heart className="w-3 h-3 text-brand-gold fill-brand-gold" />

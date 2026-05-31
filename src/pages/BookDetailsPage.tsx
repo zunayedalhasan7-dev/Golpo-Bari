@@ -12,7 +12,6 @@ interface BookDetailsPageProps {
   onDownloadAuthNeeded: () => void;
   vIsVip: boolean;
   unlockedBookIds: string[];
-  currentUser: any;
   books: Book[];
   onSelectBookByRef: (book: Book) => void;
 }
@@ -26,7 +25,6 @@ export default function BookDetailsPage({
   onDownloadAuthNeeded,
   vIsVip,
   unlockedBookIds,
-  currentUser,
   books,
   onSelectBookByRef,
 }: BookDetailsPageProps) {
