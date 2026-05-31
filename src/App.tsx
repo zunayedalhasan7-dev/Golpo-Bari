@@ -143,6 +143,16 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage, selectedBook, readingBook]);
 
+  // Author Bio State
+  const [authorBio, setAuthorBio] = useState<string>(() => {
+    return localStorage.getItem("gob_author_bio") || NOVELIST_BIO;
+  });
+
+  const handleUpdateAuthorBio = (newBio: string) => {
+    setAuthorBio(newBio);
+    localStorage.setItem("gob_author_bio", newBio);
+  };
+
   // Synchronize dynamic Firebase Auth session states
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -567,7 +577,7 @@ export default function App() {
                 <div className="relative">
                   <span className="text-4xl text-brand-gold/20 font-serif absolute -top-6 -left-2">"</span>
                   <p className="text-lg font-serif-bengali leading-relaxed text-white/90">
-                    {NOVELIST_BIO}
+                    {authorBio}
                   </p>
                   <span className="text-4xl text-brand-gold/20 font-serif absolute -bottom-10 -right-2 transform rotate-180">"</span>
                 </div>
@@ -809,6 +819,8 @@ export default function App() {
               paymentRequests={paymentRequests}
               onApproveRequest={handleApprovePaymentRequest}
               onRejectRequest={handleRejectPaymentRequest}
+              authorBio={authorBio}
+              onUpdateAuthorBio={handleUpdateAuthorBio}
             />
           </motion.div>
         ) : currentPage === "book-details" && selectedBook ? (

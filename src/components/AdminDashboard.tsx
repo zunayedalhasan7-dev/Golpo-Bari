@@ -1,7 +1,7 @@
 import React, { useState, FormEvent } from "react";
 import { Book, Chapter } from "../types";
 import { NOVELIST_NAME } from "../data";
-import { X, Plus, Trash, Edit, Check, ShieldCheck, Key, RefreshCw, Star, StarOff, Sparkles, BookOpen, Award } from "lucide-react";
+import { X, Plus, Trash, Edit, Check, ShieldCheck, Key, RefreshCw, Star, StarOff, Sparkles, BookOpen, Award, User } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { convertBijoyToUnicode } from "bijoy2unicode";
 
@@ -15,6 +15,8 @@ interface AdminDashboardProps {
   paymentRequests?: any[];
   onApproveRequest?: (id: string) => void;
   onRejectRequest?: (id: string) => void;
+  authorBio: string;
+  onUpdateAuthorBio: (newBio: string) => void;
 }
 
 export default function AdminDashboard({ 
@@ -26,18 +28,23 @@ export default function AdminDashboard({
   isAdmin = false,
   paymentRequests = [],
   onApproveRequest = () => {},
-  onRejectRequest = () => {}
+  onRejectRequest = () => {},
+  authorBio,
+  onUpdateAuthorBio
 }: AdminDashboardProps) {
   // Authorization State
   const [passcode, setPasscode] = useState("");
   const [isAuthorized, setIsAuthorized] = useState(isAdmin);
   const [authError, setAuthError] = useState("");
 
-  // Tab State: "list" | "create" | "edit" | "payments"
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "edit" | "payments">("list");
+  // Tab State: "list" | "create" | "edit" | "payments" | "bio"
+  const [activeTab, setActiveTab] = useState<"list" | "create" | "edit" | "payments" | "bio">("list");
   
   // Selection for edit
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
+
+  // Bio state in editor
+  const [tempBio, setTempBio] = useState(authorBio);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -357,6 +364,16 @@ export default function AdminDashboard({
                     </span>
                   )}
                 </button>
+                <button
+                  onClick={() => { setActiveTab("bio"); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-colors shrink-0 md:shrink ${
+                    activeTab === "bio" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-brand-charcoal/60 hover:bg-brand-gold/10"
+                  }`}
+                  id="admin-tab-bio"
+                >
+                  <User className="w-4 h-4" />
+                  আপনার তথ্য
+                </button>
 
                 {activeTab === "edit" && (
                   <div className="w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 bg-brand-gold/25 border border-brand-gold text-brand-charcoal shrink-0 md:shrink">
@@ -507,6 +524,31 @@ export default function AdminDashboard({
                           ))}
                         </div>
                       )}
+                    </motion.div>
+                  ) : activeTab === "bio" ? (
+                    <motion.div
+                      key="bio"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-6"
+                      id="admin-bio-editor"
+                    >
+                      <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">লেখকের পরিচিতি (Bio) আপডেট</h4>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">আপনার সম্পর্কে যা লেখা দেখাবে:</label>
+                        <textarea
+                          rows={6}
+                          value={tempBio}
+                          onChange={(e) => setTempBio(e.target.value)}
+                          className="w-full bg-white border border-brand-gold/15 rounded-xl py-3 px-4 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-gold resize-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => onUpdateAuthorBio(tempBio)}
+                        className="w-full bg-brand-charcoal text-brand-gold px-4 py-3 rounded-xl text-xs font-bold font-sans-bengali shadow-md hover:bg-brand-charcoal/90 transition-all flex items-center justify-center gap-1.5 border border-brand-gold/20"
+                      >
+                        তথ্য আপডেট করুন
+                      </button>
                     </motion.div>
                   ) : (
                     /* Creating/Editing unified workspace form */
