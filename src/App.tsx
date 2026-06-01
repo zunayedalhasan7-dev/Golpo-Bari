@@ -10,7 +10,7 @@ import AuthModal from "./components/AuthModal";
 import Footer from "./components/Footer";
 import BookDetailsPage from "./pages/BookDetailsPage";
 import { motion, AnimatePresence } from "motion/react";
-import { BookOpen, Star, Award, Heart, CheckCircle, ChevronRight, Eye, Search, Settings, Calendar, User, ShoppingCart, HelpCircle, ArrowLeft, BookmarkCheck, X, RefreshCw } from "lucide-react";
+import { BookOpen, Star, Award, Heart, CheckCircle, ChevronRight, Eye, Search, Settings, Calendar, User, ShoppingCart, HelpCircle, ArrowLeft, BookmarkCheck, X, RefreshCw, Home, Sparkles } from "lucide-react";
 import { auth } from "./firebase";
 import { db } from "./firebase";
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
@@ -128,6 +128,8 @@ export default function App() {
   const [checkoutPass, setCheckoutPass] = useState<boolean>(false); // Membership pass purchase
   const [paymentProvider, setPaymentProvider] = useState<"bkash" | "nagad" | "card">("bkash");
   const [checkoutName, setCheckoutName] = useState<string>("");
+  const [checkoutEmail, setCheckoutEmail] = useState<string>("guest@gopobari.com");
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [transactionId, setTransactionId] = useState<string>("");
   const [txnSuccess, setTxnSuccess] = useState<boolean>(false);
@@ -144,6 +146,51 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage, selectedBook, readingBook]);
+
+  // Handle automated dynamic purchase unlocks on successful redirect callback
+  useEffect(() => {
+    if (currentPage === "success") {
+      const params = new URLSearchParams(window.location.search);
+      const paymentID = params.get("paymentID");
+      
+      if (paymentID) {
+        const pendingItem = localStorage.getItem("gob_pending_checkout_item");
+        if (pendingItem) {
+          if (pendingItem === "vip") {
+            // Unlock VIP Membership Status
+            updateUserVipStatus(currentEmail, "approved");
+          } else {
+            // Unlock specific Book
+            const currentUnlocked = [...unlockedBookIds];
+            if (!currentUnlocked.includes(pendingItem)) {
+              currentUnlocked.push(pendingItem);
+              setUnlockedBookIds(currentUnlocked);
+              localStorage.setItem("gob_unlocked_books", JSON.stringify(currentUnlocked));
+            }
+            
+            // Register approved status
+            const savedClaims = JSON.parse(localStorage.getItem("gob_book_claims") || "{}");
+            savedClaims[pendingItem] = "approved";
+            localStorage.setItem("gob_book_claims", JSON.stringify(savedClaims));
+          }
+          // Clear payment/checkout window states
+          setCheckoutBook(null);
+          setCheckoutPass(false);
+          setIsRedirecting(false);
+          // Keep a backup of last success info for the UI view
+          const pendingName = localStorage.getItem("gob_pending_checkout_name") || "সম্মানিত গ্রাহক";
+          localStorage.setItem("gob_last_success_name", pendingName);
+          localStorage.setItem("gob_last_success_item", pendingItem);
+          
+          // Clear cache context so reloads don't duplicate logic
+          localStorage.removeItem("gob_pending_checkout_item");
+        }
+      }
+    } else if (currentPage === "cancel") {
+      // Clear redirections if cancelled
+      setIsRedirecting(false);
+    }
+  }, [currentPage]);
 
   // Author Bio State
   const [authorBio, setAuthorBio] = useState<string>(() => {
@@ -237,67 +284,52 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Complete transactions and persist in local database
-  const executePayment = (e: FormEvent) => {
+  // Live payment gateway transaction flow using secure backend routes
+  const executePayment = async (e: FormEvent) => {
     e.preventDefault();
     setCheckoutError("");
     
-    if (!checkoutName || !phoneNumber || !transactionId) {
-      setCheckoutError("দয়া করে আপনার নাম, মোবাইল নাম্বার এবং ট্রান্সজেকশন আইডি সঠিকভাবে প্রদান করুন।");
-      return;
-    }
-    
-    if (phoneNumber.length < 11) {
-      setCheckoutError("সঠিক মোবাইল নম্বার প্রদান করুন।");
+    if (!checkoutName || !checkoutEmail) {
+      setCheckoutError("দয়া করে আপনার নাম এবং ইমেইল সঠিকভাবে প্রদান করুন।");
       return;
     }
 
-    if (transactionId.length < 8) {
-      setCheckoutError("ট্রান্সজেকশন আইডি সঠিক নয়। পুনরায় চেষ্টা করুন।");
-      return;
-    }
+    const price = checkoutPass ? 299 : (checkoutBook?.price || 120);
 
-    // Capture payment details
-    const newRequest = {
-      id: "req_" + Date.now(),
-      userEmail: currentEmail,
-      name: checkoutName,
-      phone: phoneNumber,
-      trxId: transactionId,
-      amount: checkoutPass ? 299 : (checkoutBook?.price || 120),
-      itemType: checkoutPass ? "vip" : "book",
-      itemId: checkoutPass ? undefined : checkoutBook?.id,
-      itemName: checkoutPass ? "ভিআইপি আজীবন মেম্বারশিপ পাস" : (checkoutBook?.title || "প্রিমিয়াম উপন্যাস"),
-      status: "pending",
-      timestamp: new Date().toLocaleDateString("bn-BD") + " " + new Date().toLocaleTimeString("bn-BD")
-    };
-
-    setTxnSuccess(true);
-    setTimeout(() => {
-      // Save request
-      const updatedReqs = [newRequest, ...paymentRequests];
-      syncPaymentRequests(updatedReqs);
-
-      if (checkoutPass) {
-        // Set user to VIP pending
-        updateUserVipStatus(currentEmail, "pending");
-      } else if (checkoutBook) {
-        // For individual books, let's store it as pending under the user's book claims
-        const savedClaims = JSON.parse(localStorage.getItem("gob_book_claims") || "{}");
-        savedClaims[checkoutBook.id] = "pending";
-        localStorage.setItem("gob_book_claims", JSON.stringify(savedClaims));
-      }
+    try {
+      setIsRedirecting(true);
       
-      // Close checkout with clean animation
-      setTimeout(() => {
-        setTxnSuccess(false);
-        setCheckoutBook(null);
-        setCheckoutPass(false);
-        setPhoneNumber("");
-        setTransactionId("");
-        setCheckoutName("");
-      }, 1500);
-    }, 1500);
+      // Cache checkout context in localStorage to apply dynamic unlock once verified on success callback
+      localStorage.setItem("gob_pending_checkout_item", checkoutPass ? "vip" : (checkoutBook?.id || ""));
+      localStorage.setItem("gob_pending_checkout_name", checkoutName);
+
+      const response = await fetch("/api/make-payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: currentEmail,
+          customerName: checkoutName,
+          customerEmail: checkoutEmail,
+          amount: price,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.paymentUrl) {
+        throw new Error(data.error || "বিকাশ পেমেন্ট সেশন তৈরি করতে ব্যর্থ হয়েছে।");
+      }
+
+      // Secure redirection to bKash gateway
+      window.location.href = data.paymentUrl;
+
+    } catch (err: any) {
+      console.error("Payment creation failed:", err);
+      setCheckoutError(err?.message || "বিকাশ পেমেন্ট গেটওয়ের সাথে যোগাযোগ করতে সমস্যা হচ্ছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।");
+      setIsRedirecting(false);
+    }
   };
 
   // Approve a payment request
@@ -806,6 +838,142 @@ export default function App() {
               onSelectBookByRef={handleSelectBook}
             />
           </motion.div>
+        ) : currentPage === "success" ? (
+          <motion.div
+            key="success-page"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center pt-24 pb-16 px-4 font-sans-bengali"
+          >
+            <div className="w-full max-w-md bg-white border border-emerald-500/10 rounded-2xl p-6 md:p-8 text-center shadow-xl space-y-6 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400" />
+              
+              <div className="w-16 h-16 rounded-full bg-emerald-50 mx-auto flex items-center justify-center border-2 border-emerald-500 shadow-md">
+                <CheckCircle className="w-10 h-10 text-emerald-600" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-emerald-950 font-serif-bengali">পেমেন্ট সফল সম্পন্ন হয়েছে!</h2>
+                <p className="text-xs text-brand-charcoal/60 leading-relaxed max-w-xs mx-auto">
+                  অভিনন্দন! আপনার গল্পবাড়ি পেমেন্টটি বিকাশ পেমেন্ট গেটওয়ের মাধ্যমে পরিশোধ করা হয়েছে।
+                </p>
+              </div>
+
+              <div className="bg-stone-50 rounded-xl p-4 border border-stone-200/60 divide-y divide-stone-200/40 text-left text-xs font-sans-bengali space-y-2.5">
+                <div className="flex justify-between items-center pt-1.5 first:pt-0">
+                  <span className="font-bold text-brand-charcoal/50">গ্রাহকের নাম:</span>
+                  <span className="font-bold text-brand-charcoal font-sans-bengali">
+                    {localStorage.getItem("gob_last_success_name") || "সম্মানিত গ্রাহক"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2.5">
+                  <span className="font-bold text-brand-charcoal/50">ক্রয়কৃত আইটেম:</span>
+                  <span className="font-bold text-brand-charcoal">
+                    {localStorage.getItem("gob_last_success_item") === "vip" 
+                      ? "👑 ভিআইপি আজীবন মেম্বারশিপ পাস" 
+                      : (() => {
+                          const item = localStorage.getItem("gob_last_success_item") || "";
+                          const foundBook = books.find(b => b.id === item);
+                          return foundBook ? `📖 ${foundBook.title}` : "📖 প্রিমিয়াম উপন্যাস";
+                        })()
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2.5">
+                  <span className="font-bold text-brand-charcoal/50">পরিশোধের পরিমাণ:</span>
+                  <span className="font-black text-[#E2136E] font-mono text-sm leading-none">
+                    ৳ {localStorage.getItem("gob_last_success_item") === "vip" ? "২৯৯ BDT" : "১২০ BDT"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2.5 pb-0.5">
+                  <span className="font-bold text-brand-charcoal/50 font-sans-bengali">ট্রান্সজেকশন আইডি:</span>
+                  <span className="font-black text-emerald-700 font-mono text-xs uppercase tracking-wider bg-emerald-50/50 border border-emerald-100/60 rounded px-1.5 py-0.5 select-all">
+                    {new URLSearchParams(window.location.search).get("trxID") || "SUCCESS"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    const item = localStorage.getItem("gob_last_success_item") || "";
+                    if (item && item !== "vip") {
+                      const bookToRead = books.find(b => b.id === item);
+                      if (bookToRead) {
+                        setReadingBook(bookToRead);
+                        navigateToPage("home");
+                        return;
+                      }
+                    }
+                    navigateToPage("home");
+                  }}
+                  className="flex-1 bg-[#E2136E] hover:bg-[#c40e5d] text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-pink-500/10 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer font-serif-bengali"
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> পড়া শুরু করুন
+                </button>
+                <button
+                  onClick={() => navigateToPage("home")}
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 text-brand-charcoal font-bold text-xs py-2.5 px-4 rounded-xl border border-stone-200 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer font-serif-bengali"
+                >
+                  <Home className="w-3.5 h-3.5" /> হোম পেজে ফিরুন
+                </button>
+              </div>
+
+              <p className="text-[9px] text-brand-charcoal/40 font-mono">🔒 Securely Audited & Authenticated by bKash Gateway</p>
+            </div>
+          </motion.div>
+        ) : currentPage === "cancel" ? (
+          <motion.div
+            key="cancel-page"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center pt-24 pb-16 px-4 font-sans-bengali"
+          >
+            <div className="w-full max-w-md bg-white border border-red-500/10 rounded-2xl p-6 md:p-8 text-center shadow-xl space-y-6 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-red-500 to-amber-500" />
+              
+              <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center border-2 border-red-500 shadow-md">
+                <X className="w-10 h-10 text-red-600" />
+              </div>
+
+              <div className="space-y-1.5">
+                <h2 className="text-2xl font-black text-red-950 font-serif-bengali">পেমেন্ট বাতিল বা ব্যর্থ হয়েছে</h2>
+                <p className="text-xs text-brand-charcoal/60 leading-relaxed max-w-xs mx-auto">
+                  দুঃখিত! পেমেন্ট প্রক্রিয়াটি সম্পন্ন করা সম্ভব হয়নি অথবা বাতিল করা হয়েছে। বিকাশ অ্যাকাউন্ট থেকে কোনো অর্থ কাটা হয়নি।
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    const lastItem = localStorage.getItem("gob_pending_checkout_item");
+                    if (lastItem === "vip") {
+                      setCheckoutPass(true);
+                      setCheckoutBook(null);
+                    } else if (lastItem) {
+                      const book = books.find(b => b.id === lastItem);
+                      if (book) {
+                        setCheckoutBook(book);
+                        setCheckoutPass(false);
+                      }
+                    }
+                    navigateToPage("home");
+                  }}
+                  className="flex-1 bg-[#E2136E] hover:bg-[#c40e5d] text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-pink-500/10 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer font-serif-bengali"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> পুনরায় চেষ্টা করুন
+                </button>
+                <button
+                  onClick={() => navigateToPage("home")}
+                  className="flex-1 bg-stone-100 hover:bg-stone-200 text-brand-charcoal font-bold text-xs py-2.5 px-4 rounded-xl border border-stone-200 active:scale-98 transition-all flex items-center justify-center gap-1.5 cursor-pointer font-serif-bengali"
+                >
+                  <Home className="w-3.5 h-3.5" /> মূল পাতায় ফিরুন
+                </button>
+              </div>
+            </div>
+          </motion.div>
         ) : null}
       </AnimatePresence>
 
@@ -854,26 +1022,12 @@ export default function App() {
               </div>
 
               {/* Transaction form details */}
-              {txnSuccess ? (
-                <div className="p-8 text-center space-y-4 bg-white" id="checkout-success-view">
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="w-16 h-16 rounded-full bg-emerald-50 mx-auto flex items-center justify-center border-2 border-emerald-500 shadow-lg shadow-emerald-500/10"
-                  >
-                    <CheckCircle className="w-10 h-10 text-emerald-600 animate-bounce" />
-                  </motion.div>
-                  <div className="space-y-1">
-                    <h4 className="text-lg font-bold font-serif-bengali text-brand-charcoal">পেমেন্ট সফল সম্পন্ন হয়েছে!</h4>
-                    <p className="text-xs font-sans-bengali text-brand-charcoal/60 leading-relaxed px-2">
-                      {checkoutPass 
-                        ? "আপনার আজীবন মেম্বারশিপ পাস সক্রিয় করা হয়েছে। সীমাহীন প্রিমিয়াম বই পড়া উপভোগ করুন!" 
-                        : "উপন্যাসটি সম্পূর্ণ উন্মোচিত হয়েছে। পরম শান্তিতে পড়ুন।"
-                      }
-                    </p>
-                  </div>
-                  <div className="text-[10px] font-mono text-emerald-600 bg-emerald-50 py-1.5 px-3 rounded-lg inline-block border border-emerald-100">
-                    TrxID: {transactionId || "SUCCESS"}
+              {isRedirecting ? (
+                <div className="p-10 text-center space-y-4 bg-white flex flex-col items-center justify-center min-h-[300px]" id="checkout-redirect-view">
+                  <div className="w-12 h-12 border-4 border-[#E2136E] border-t-transparent rounded-full animate-spin" />
+                  <div className="space-y-1.5 pt-2">
+                    <p className="text-sm font-bold font-sans-bengali text-brand-charcoal">বিকাশ গেটওয়েতে সংযোগ করা হচ্ছে...</p>
+                    <p className="text-[10px] font-sans-bengali text-brand-charcoal/50">অনুগ্রহ করে কয়েক সেকেন্ড অপেক্ষা করুন। আপনাকে বিকাশ সুরক্ষিত পাতায় পাঠানো হচ্ছে।</p>
                   </div>
                 </div>
               ) : (
@@ -902,13 +1056,13 @@ export default function App() {
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-3 pt-4 space-y-3 bg-stone-50/55">
+                  <div className="p-4 space-y-4 bg-stone-50/55">
                     
                     {/* VIP Promotion Upsell inside regular checkout */}
                     {!checkoutPass && checkoutBook && (
                       <div 
                         onClick={() => setCheckoutPass(true)}
-                        className="p-2 bg-gradient-to-r from-amber-500/10 to-amber-600/5 hover:from-amber-500/15 hover:to-amber-600/10 border border-amber-500/20 cursor-pointer rounded-lg flex items-center justify-between gap-2 text-[10px] font-sans-bengali text-brand-charcoal transition-all mb-0.5 group"
+                        className="p-2.5 bg-gradient-to-r from-amber-500/10 to-amber-600/5 hover:from-amber-500/15 hover:to-amber-600/10 border border-amber-500/20 cursor-pointer rounded-lg flex items-center justify-between gap-2 text-[10px] font-sans-bengali text-brand-charcoal transition-all mb-1 group"
                       >
                         <div className="flex items-center gap-1.5">
                           <Award className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
@@ -921,90 +1075,50 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Step-by-Step interactive bKash send money instructions */}
-                    <div className="bg-white rounded-xl p-2.5 shadow-3xs border border-brand-charcoal/5 space-y-2">
-                      <div className="flex items-center justify-between text-[10px] text-brand-charcoal/50">
-                        <span className="font-bold text-[#E2136E] font-serif-bengali">বিকাশ পার্সোনাল নম্বরে Send Money করুন:</span>
-                        <span className="text-[8px] bg-[#E2136E]/10 text-[#E2136E] px-1 py-0.2 rounded font-sans font-bold">Personal</span>
-                      </div>
-                      <div className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-lg p-1 overflow-hidden shadow-3xs">
-                        <span className="pl-2 font-mono font-black text-xs text-[#E2136E] tracking-wider selection:bg-pink-100">01626538051</span>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                           navigator.clipboard.writeText("01626538051");
-                           setHasCopied(true);
-                           setTimeout(() => setHasCopied(false), 2000);
-                          }}
-                          className="bg-[#E2136E] hover:bg-[#c40e5d] text-white px-2 py-1 rounded text-[9px] font-bold transition-all active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
-                        >
-                          {hasCopied ? "Copied!" : "নম্বরটি কপি করুন"}
-                        </button>
-                      </div>
-                      <p className="text-[9px] font-sans-bengali text-brand-charcoal/60 leading-tight">
-                        ১. এই নম্বরে <strong className="text-brand-charcoal">৳{checkoutPass ? 299 : (checkoutBook?.price || 0)}</strong> পাঠিয়ে ২. নিচের ফরমে আপনার তথ্য ও মেসেজে প্রাপ্ত <strong className="text-[#E2136E] font-bold">TrxID</strong> দিন।
-                      </p>
-                    </div>
-
                     {/* Form Fields Section */}
-                    <div className="space-y-2 bg-white rounded-xl p-2.5 border border-brand-charcoal/5 shadow-3xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-0.5">
-                          <label className="text-[9px] font-bold text-brand-charcoal/70 font-sans-bengali">আপনার নাম</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="যেমন: জুনাইদ"
-                            value={checkoutName}
-                            onChange={(e) => setCheckoutName(e.target.value)}
-                            className="w-full bg-stone-50 border border-stone-200 focus:bg-white focus:ring-1 focus:ring-[#E2136E]/10 focus:border-[#E2136E] rounded-md py-1 px-1.5 text-[10px] font-sans-bengali text-brand-charcoal transition-all placeholder:text-stone-300"
-                            id="checkout-name-input"
-                          />
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <label className="text-[9px] font-bold text-brand-charcoal/70 font-sans-bengali">বিকাশ মোবাইল নম্বর</label>
-                          <input
-                            type="tel"
-                            required
-                            placeholder="017XXXXXXXX"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            className="w-full bg-stone-50 border border-stone-200 focus:bg-white focus:ring-1 focus:ring-[#E2136E]/10 focus:border-[#E2136E] rounded-md py-1 px-1.5 text-[10px] font-mono text-brand-charcoal transition-all placeholder:text-stone-300 shadow-3xs"
-                            id="checkout-mobile-input"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-0.5 pt-0.5">
-                        <label className="text-[9px] font-bold text-brand-charcoal/75 font-sans-bengali flex items-center justify-between">
-                          <span>ট্রান্সজেকশন আইডি (Transaction ID)</span>
-                          <span className="text-[8px] text-[#E2136E] font-sans">যেমন: 8M49X8K9</span>
-                        </label>
+                    <div className="space-y-3 bg-white rounded-xl p-3 border border-brand-charcoal/5 shadow-3xs">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-brand-charcoal/70 font-sans-bengali">আপনার নাম (Full Name)</label>
                         <input
                           type="text"
                           required
-                          placeholder="মেসেজের TrxID টি এখানে লিখুন"
-                          value={transactionId}
-                          onChange={(e) => setTransactionId(e.target.value)}
-                          className="w-full bg-[#E2136E]/5 border border-[#E2136E]/10 focus:bg-white focus:ring-1 focus:ring-[#E2136E]/10 focus:border-[#E2136E] rounded-md py-1.5 px-2 text-[10px] font-mono font-bold text-[#E2136E] text-center tracking-wider uppercase transition-all"
-                          id="checkout-txn-input"
+                          placeholder="যেমন: জুনায়েদ হাসান"
+                          value={checkoutName}
+                          onChange={(e) => setCheckoutName(e.target.value)}
+                          className="w-full bg-stone-50 border border-stone-200 focus:bg-white focus:ring-1 focus:ring-[#E2136E]/10 focus:border-[#E2136E] rounded-md py-2 px-3 text-xs font-sans-bengali text-brand-charcoal transition-all"
+                          id="checkout-name-input"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-brand-charcoal/70 font-sans-bengali">আপনার ইমেইল (Email Address)</label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="name@email.com"
+                          value={checkoutEmail}
+                          onChange={(e) => setCheckoutEmail(e.target.value)}
+                          className="w-full bg-stone-50 border border-stone-200 focus:bg-white focus:ring-1 focus:ring-[#E2136E]/10 focus:border-[#E2136E] rounded-md py-2 px-3 text-xs font-mono text-brand-charcoal transition-all"
+                          id="checkout-email-input"
                         />
                       </div>
                     </div>
 
+                    <p className="text-[10px] font-sans-bengali text-brand-charcoal/50 leading-relaxed text-center">
+                      বিকাশ গেটওয়েতে আপনার পিন বা ওটিপি প্রদান করে পেমেন্ট সম্পন্ন করতে পারবেন। গল্পবাড়ি কখনোই আপনার পিন সংরক্ষণ করে না।
+                    </p>
                   </div>
 
                   {/* Submission and Bottom CTA */}
-                  <div className="p-2.5 bg-stone-100 border-t border-stone-200/50 flex flex-col items-center">
+                  <div className="p-3 bg-stone-100 border-t border-stone-200/50 flex flex-col items-center">
                     <button
                       type="submit"
-                      className="w-full bg-[#E2136E] hover:bg-[#c40e5d] text-white font-bold text-xs tracking-wide py-2 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md shadow-pink-500/10 active:scale-98 cursor-pointer font-serif-bengali"
+                      className="w-full bg-[#E2136E] hover:bg-[#c40e5d] text-white font-bold text-xs tracking-wide py-2.5 rounded-xl uppercase transition-all duration-300 flex items-center justify-center gap-1.5 shadow-md shadow-pink-500/10 active:scale-98 cursor-pointer font-serif-bengali"
                       id="checkout-verify-btn"
                     >
-                      <CheckCircle className="w-3.5 h-3.5 text-white" /> পেমেন্ট ভেরিফাই করুন
+                      <Sparkles className="w-4 h-4 text-white" /> বিকাশ দিয়ে পে করুন
                     </button>
-                    <p className="text-[8px] text-brand-charcoal/40 font-sans mt-1">🔒 Automated SSL Cryptographic Secure Gateway</p>
+                    <p className="text-[8px] text-brand-charcoal/40 font-sans mt-1.5">🔒 Automated Secure Checkout Payment Gateway</p>
                   </div>
                 </form>
               )}

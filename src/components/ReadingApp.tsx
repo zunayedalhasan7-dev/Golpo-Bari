@@ -14,6 +14,7 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
   const [fontSize, setFontSize] = useState<number>(18); // default in pixels
   const [isSerif, setIsSerif] = useState<boolean>(true);
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(0);
+  const [lastReadChapterIndex, setLastReadChapterIndex] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [showChaptersMenu, setShowChaptersMenu] = useState<boolean>(false);
   
@@ -23,13 +24,17 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
 
   const [isUIVisible, setIsUIVisible] = useState<boolean>(true);
 
-  // Load bookmarks
+  // Load last read chapter and bookmarks
   useEffect(() => {
+    const savedLastRead = localStorage.getItem(`gob_last_read_${book.id}`);
+    if (savedLastRead) {
+      setLastReadChapterIndex(parseInt(savedLastRead, 10));
+    }
+
     const savedBookmarks = localStorage.getItem(`gob_bookmark_${book.id}`);
     if (savedBookmarks) {
       const parsed = JSON.parse(savedBookmarks);
       if (parsed.chapterIndex !== undefined) {
-        // If same chapter, mark as bookmarked
         if (parsed.chapterIndex === currentChapterIndex) {
           setIsBookmarked(true);
         } else {
@@ -40,6 +45,12 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
       setIsBookmarked(false);
     }
   }, [book.id, currentChapterIndex]);
+
+  // Handle saving last read chapter
+  useEffect(() => {
+    localStorage.setItem(`gob_last_read_${book.id}`, String(currentChapterIndex));
+    setLastReadChapterIndex(currentChapterIndex);
+  }, [currentChapterIndex, book.id]);
 
   // Handle bookmark toggle
   const toggleBookmark = () => {
@@ -337,6 +348,7 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
                       >
                         <span className="line-clamp-1">{ch.title}</span>
                         {isSelected && <span className="text-[9px] uppercase tracking-wider bg-brand-charcoal text-brand-gold px-1.5 py-0.5 rounded font-bold">পঠনরত</span>}
+                        {!isSelected && idx === lastReadChapterIndex && <span className="text-[9px] uppercase tracking-wider bg-amber-600 text-white px-1.5 py-0.5 rounded font-bold">শেষ পঠিত</span>}
                       </button>
                     );
                   })}
