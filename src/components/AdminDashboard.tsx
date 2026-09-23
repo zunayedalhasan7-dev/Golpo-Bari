@@ -454,7 +454,7 @@ export default function AdminDashboard({
                   className="space-y-4 font-sans-bengali text-left"
                   id="admin-payments-list"
                 >
-                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">পেমেন্ট ভেরিফিকেশন ও মেম্বারশিপ রিকোয়েস্টসমূহ</h4>
+                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">পেমেন্ট ভেরিফিকেশন ও বই ক্রয় রিকোয়েস্টসমূহ</h4>
                   {paymentRequests.length === 0 ? (
                     <div className="text-center py-16 bg-white border border-brand-gold/10 rounded-2xl flex flex-col items-center justify-center p-4">
                       <Award className="w-12 h-12 text-brand-charcoal/20 mb-2.5 animate-pulse" />

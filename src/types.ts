@@ -42,3 +42,11 @@ export interface Bookmark {
   progressPercent: number;
   timestamp: number;
 }
+
+export interface CartItem {
+  id: string;
+  book: Book;
+  quantity: number;
+  edition: "digital" | "paperback";
+}
+

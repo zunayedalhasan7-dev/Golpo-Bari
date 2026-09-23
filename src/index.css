@@ -1,9 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-serif-bengali: "Noto Serif Bengali", "Noto Serif", Georgia, serif;
-  --font-sans-bengali: "Hind Siliguri", "Inter", system-ui, sans-serif;
+  --font-serif-bengali: "Nirjhor", "Noto Serif Bengali", serif;
+  --font-sans-bengali: "Nirjhor", "Hind Siliguri", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   
   --color-brand-gold: #c5a47e;
@@ -23,7 +22,6 @@
   }
 }
 
-/* Elegant scrollbar styling for the cinematic feel */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -37,28 +35,3 @@
   background: #c5a47e;
   border-radius: 9999px;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a88358;
-}
-
-/* Utility to hide scrollbars but keep functionality */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-
-.scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-
-/* Custom styles for high-fidelity interactive elements */
-.cinematic-glow {
-  box-shadow: 0 10px 40px -10px rgba(197, 164, 126, 0.15);
-}
-
-.card-hover-glow:hover {
-  box-shadow: 0 20px 40px -15px rgba(197, 164, 126, 0.25);
-  transform: translateY(-4px);
-}
-

@@ -1,16 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, Award, Home, Search, ShieldAlert, Heart, User, LogOut, MoreVertical, X } from "lucide-react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { BookOpen, Award, Home, MoreVertical, X, Sparkles } from "lucide-react";
 
 interface NavbarProps {
   navigateToPage: (page: string) => void;
   currentPage: string;
-  vIsVip?: boolean;
-  onVipCheckout?: () => void;
 }
 
-export default function Navbar({ navigateToPage, currentPage, vIsVip = false, onVipCheckout }: NavbarProps) {
+export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,79 +23,73 @@ export default function Navbar({ navigateToPage, currentPage, vIsVip = false, on
     };
   }, []);
 
-  // Desktop header items
   const menuItems = [
     { id: "home", label: "হোম", icon: Home },
-    { id: "read", label: "পড়ুন", icon: BookOpen },
-    { id: "premium", label: "প্রিমিয়াম", icon: Award },
+    { id: "read", label: "উপন্যাস", icon: BookOpen },
+    { id: "premium", label: "সংগ্রহ", icon: Award },
   ];
 
   return (
     <>
-      {/* Premium Desktop Navbar */}
-      <header className="sticky top-0 z-40 bg-brand-beige/80 backdrop-blur-md border-b border-brand-gold/10 px-6 py-1.5 md:px-12 cinematic-glow">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          {/* Logo & Slogan */}
+      {/* Borderless Clean Navbar */}
+      <header className="sticky top-0 z-40 bg-[#FBFBFA]/90 backdrop-blur-xl px-6 py-4 md:px-12 transition-all duration-300">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          
+          {/* Logo */}
           <div 
             onClick={() => navigateToPage("home")}
-            className="flex items-center cursor-pointer group"
-            id="nav-logo-container"
+            className="flex items-center gap-2.5 cursor-pointer group"
           >
-            <img
-              src="https://i.postimg.cc/KvdBcxT5/daabb61c-d861-4bce-97f3-a904a33af923-Photoroom.png"
-              alt="গল্পবাড়ি"
-              className="w-24 h-24 md:w-28 md:h-28 object-contain group-hover:scale-105 transition-transform duration-300 my-[-14px]"
-              referrerPolicy="no-referrer"
-              id="nav-logo-image"
-            />
+            <div className="w-9 h-9 rounded-xl bg-brand-charcoal text-brand-gold flex items-center justify-center font-serif-bengali font-bold text-lg shadow-sm">
+              গ
+            </div>
+            <span className="font-serif-bengali font-bold text-lg md:text-xl text-brand-charcoal tracking-tight">
+              গল্পবাড়ি
+            </span>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="flex items-center space-x-6">
-            <nav className="hidden md:flex items-center space-x-8" id="nav-desktop-menu">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => navigateToPage(item.id)}
-                    className={`relative py-1 text-sm font-medium tracking-wide font-sans-bengali transition-colors duration-300 flex items-center gap-2 ${
-                      isActive ? "text-brand-charcoal" : "text-brand-charcoal/60 hover:text-brand-charcoal"
-                    }`}
-                    id={`nav-item-${item.id}`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-brand-gold" : "text-brand-charcoal/40"}`} />
-                    {item.label}
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeTabUnderline"
-                        className="absolute bottom-0 left-0 right-0 h-[2px] bg-brand-gold"
-                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+          {/* Desktop Navigation - Borderless */}
+          <nav className="hidden md:flex items-center space-x-1 bg-neutral-200/55 p-1 rounded-full">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => navigateToPage(item.id)}
+                  className={`px-5 py-2 text-xs font-semibold font-sans-bengali transition-all rounded-full flex items-center gap-2 cursor-pointer ${
+                    isActive ? "bg-brand-charcoal text-brand-gold shadow-sm" : "text-neutral-600 hover:text-brand-charcoal"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Action */}
+          <div className="hidden md:flex items-center">
+            <button
+              onClick={() => navigateToPage("read")}
+              className="bg-brand-gold/15 hover:bg-brand-gold/25 text-brand-charcoal text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-brand-gold" />
+              পড়ুন
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Floating 3-Dot Navigation button & menu for Mobile */}
-      <div 
-        className="fixed bottom-6 right-6 md:hidden z-50 flex flex-col items-end gap-3" 
-        ref={menuRef}
-        id="nav-mobile-floating"
-      >
+      {/* Mobile Floating Menu */}
+      <div className="fixed bottom-6 right-6 md:hidden z-50 flex flex-col items-end gap-3" ref={menuRef}>
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.85, y: 15 }}
+              initial={{ opacity: 0, scale: 0.9, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.85, y: 15 }}
-              transition={{ type: "spring", damping: 20, stiffness: 350 }}
-              className="bg-brand-charcoal/95 backdrop-blur-lg border border-brand-gold/25 rounded-2xl shadow-2xl p-2 w-44 text-left space-y-1.5"
+              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              className="bg-brand-charcoal text-white rounded-2xl shadow-xl p-2 w-44 space-y-1"
             >
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -110,40 +101,25 @@ export default function Navbar({ navigateToPage, currentPage, vIsVip = false, on
                       navigateToPage(item.id);
                       setIsMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2 rounded-xl transition-all font-sans-bengali text-xs selection:bg-transparent ${
-                      isActive 
-                        ? "bg-brand-gold text-brand-charcoal font-bold shadow-md shadow-brand-gold/10" 
-                        : "text-brand-beige/85 hover:bg-white/5 active:bg-white/10"
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs ${
+                      isActive ? "bg-brand-gold text-brand-charcoal font-bold" : "hover:bg-white/10 text-neutral-300"
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
+                    <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
-
-              {/* Mobile menu items render here */}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Triple Dot Trigger Button */}
-        <motion.button
+        <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          whileTap={{ scale: 0.92 }}
-          className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all shadow-xl hover:shadow-brand-gold/15 cursor-pointer ${
-            isMenuOpen 
-              ? "bg-brand-gold border-brand-gold text-brand-charcoal scale-105" 
-              : "bg-brand-charcoal border-brand-gold/30 text-brand-beige"
-          }`}
-          aria-label="Navigation Menu"
+          className="w-12 h-12 rounded-full bg-brand-charcoal text-brand-gold flex items-center justify-center shadow-lg cursor-pointer"
         >
-          {isMenuOpen ? (
-            <X className="w-5 h-5 pointer-events-none" />
-          ) : (
-            <MoreVertical className="w-5 h-5 pointer-events-none animate-pulse" />
-          )}
-        </motion.button>
+          {isMenuOpen ? <X className="w-5 h-5" /> : <MoreVertical className="w-5 h-5" />}
+        </button>
       </div>
     </>
   );

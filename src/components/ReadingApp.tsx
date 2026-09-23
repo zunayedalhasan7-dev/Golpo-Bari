@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Book } from "../types";
-import { X, Bookmark, BookmarkCheck, Sun, Moon, Sparkles, Sliders, ChevronLeft, ChevronRight, ListOrdered } from "lucide-react";
+import { X, Bookmark, BookmarkCheck, Sun, Moon, ChevronLeft, ChevronRight, ListOrdered, Type } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface ReadingAppProps {
@@ -10,49 +10,42 @@ interface ReadingAppProps {
 
 export default function ReadingApp({ book, onClose }: ReadingAppProps) {
   // Theme state: "day" | "sepia" | "night"
-  const [theme, setTheme] = useState<"day" | "sepia" | "night">("sepia");
-  const [fontSize, setFontSize] = useState<number>(18); // default in pixels
+  const [theme, setTheme] = useState<"day" | "sepia" | "night">("day");
+  const [fontSize, setFontSize] = useState<number>(18);
   const [isSerif, setIsSerif] = useState<boolean>(true);
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(0);
-  const [lastReadChapterIndex, setLastReadChapterIndex] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [showChaptersMenu, setShowChaptersMenu] = useState<boolean>(false);
-  
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const activeChapter = book.chapters[currentChapterIndex] || book.chapters[0];
 
-  const [isUIVisible, setIsUIVisible] = useState<boolean>(true);
-
-  // Load last read chapter and bookmarks
   useEffect(() => {
     const savedLastRead = localStorage.getItem(`gob_last_read_${book.id}`);
     if (savedLastRead) {
-      setLastReadChapterIndex(parseInt(savedLastRead, 10));
+      setCurrentChapterIndex(parseInt(savedLastRead, 10) || 0);
     }
+  }, [book.id]);
 
+  useEffect(() => {
     const savedBookmarks = localStorage.getItem(`gob_bookmark_${book.id}`);
     if (savedBookmarks) {
-      const parsed = JSON.parse(savedBookmarks);
-      if (parsed.chapterIndex !== undefined) {
-        if (parsed.chapterIndex === currentChapterIndex) {
-          setIsBookmarked(true);
-        } else {
-          setIsBookmarked(false);
-        }
+      try {
+        const parsed = JSON.parse(savedBookmarks);
+        setIsBookmarked(parsed.chapterIndex === currentChapterIndex);
+      } catch {
+        setIsBookmarked(false);
       }
     } else {
       setIsBookmarked(false);
     }
   }, [book.id, currentChapterIndex]);
 
-  // Handle saving last read chapter
   useEffect(() => {
     localStorage.setItem(`gob_last_read_${book.id}`, String(currentChapterIndex));
-    setLastReadChapterIndex(currentChapterIndex);
   }, [currentChapterIndex, book.id]);
 
-  // Handle bookmark toggle
   const toggleBookmark = () => {
     if (isBookmarked) {
       localStorage.removeItem(`gob_bookmark_${book.id}`);
@@ -69,7 +62,6 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
     }
   };
 
-  // Switch chapters
   const prevChapter = () => {
     if (currentChapterIndex > 0) {
       setCurrentChapterIndex((prev) => prev - 1);
@@ -84,280 +76,322 @@ export default function ReadingApp({ book, onClose }: ReadingAppProps) {
     }
   };
 
-  // Styling maps based on theme
+  // Apple Books exact theme palettes
   const themeStyles = {
     day: {
-      bg: "bg-brand-beige",
-      text: "text-brand-charcoal",
-      panel: "bg-white border-brand-gold/10",
-      btnActive: "bg-brand-gold text-brand-charcoal",
+      bg: "bg-[#FFFFFF]",
+      text: "text-[#1D1D1F]",
+      nav: "bg-white/80 border-black/[0.06]",
+      panel: "bg-white border-black/[0.06] shadow-[0_12px_32px_rgba(0,0,0,0.1)]",
+      muted: "text-[#86868B]",
+      buttonBg: "bg-black/[0.05] hover:bg-black/[0.08]",
     },
     sepia: {
-      bg: "bg-brand-sepia",
-      text: "text-[rgb(74,53,30)]",
-      panel: "bg-[rgb(236,224,208)] border-[rgba(197,164,126,0.25)]",
-      btnActive: "bg-[rgb(197,164,126)] text-[rgb(74,53,30)] font-semibold",
+      bg: "bg-[#F7F1E5]",
+      text: "text-[#3C3228]",
+      nav: "bg-[#F7F1E5]/80 border-[#E8DCC8]",
+      panel: "bg-[#F0E6D2] border-[#E8DCC8] shadow-[0_12px_32px_rgba(60,50,40,0.1)]",
+      muted: "text-[#8A7968]",
+      buttonBg: "bg-black/[0.05] hover:bg-black/[0.08]",
     },
     night: {
-      bg: "bg-[rgb(18,18,18)]",
-      text: "text-brand-beige/85",
-      panel: "bg-[rgb(28,28,28)] border-brand-gold/5",
-      btnActive: "bg-brand-gold text-brand-charcoal",
+      bg: "bg-[#1C1C1E]",
+      text: "text-[#E5E5EA]",
+      nav: "bg-[#1C1C1E]/80 border-white/[0.08]",
+      panel: "bg-[#2C2C2E] border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.5)]",
+      muted: "text-[#8E8E93]",
+      buttonBg: "bg-white/[0.08] hover:bg-white/[0.12]",
     },
   };
 
   return (
-    <div ref={containerRef} className={`fixed inset-0 z-50 overflow-y-auto transition-colors duration-500 ease-out ${themeStyles[theme].bg} flex flex-col`} id="reader-container">
-      {/* Top sticky controls */}
-      <nav className={`sticky top-0 z-50 border-b p-4 backdrop-blur-md flex items-center justify-between ${
-        theme === "night" ? "bg-[rgb(18,18,18)]/90 border-brand-gold/10" : "bg-brand-beige/90 border-brand-gold/10"
-      }`} id="reader-nav">
-        <div className="flex items-center space-x-3">
-          <button 
+    <div
+      ref={containerRef}
+      className={`fixed inset-0 z-50 overflow-y-auto transition-colors duration-300 ${themeStyles[theme].bg} flex flex-col`}
+      id="reader-container"
+    >
+      {/* Apple Books Frosted Header */}
+      <header
+        className={`sticky top-0 z-40 border-b px-4 md:px-8 py-3 backdrop-blur-2xl flex items-center justify-between transition-colors ${themeStyles[theme].nav}`}
+        id="reader-nav"
+      >
+        <div className="flex items-center gap-3">
+          <button
             onClick={onClose}
-            className={`p-2.5 rounded-full hover:bg-neutral-500/10 transition-colors duration-300 ${theme === "night" ? "text-white" : "text-brand-charcoal"}`}
+            className={`p-2 rounded-full active:scale-95 transition-all cursor-pointer ${themeStyles[theme].buttonBg}`}
             id="reader-close-btn"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
-          
           <div>
-            <h2 className={`font-bold font-serif-bengali text-sm md:text-base leading-tight ${theme === "night" ? "text-white" : "text-brand-charcoal"}`}>
+            <h2 className={`font-serif-bengali font-bold text-sm leading-none ${themeStyles[theme].text}`}>
               {book.title}
             </h2>
-            <p className="text-[10px] md:text-xs text-brand-gold font-sans-bengali font-light">
-              অধ্যায় {currentChapterIndex + 1}/{book.chapters.length}: {activeChapter.title}
+            <p className={`text-[10px] font-sans-bengali mt-0.5 ${themeStyles[theme].muted}`}>
+              {activeChapter.title}
             </p>
           </div>
         </div>
 
-        {/* Toolbar controls */}
-        <div className="flex items-center gap-2 md:gap-4">
-          {/* Bookmark Button */}
+        {/* Toolbar Controls */}
+        <div className="flex items-center gap-2">
+          {/* Typography Settings Menu Button */}
           <button
-            onClick={toggleBookmark}
-            className={`p-2.5 rounded-full transition-colors duration-300 ${
-              isBookmarked ? "text-brand-gold" : "text-neutral-500/50 hover:text-brand-gold"
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2 rounded-full active:scale-95 transition-all cursor-pointer ${
+              showSettings ? "bg-[#0071E3] text-white" : themeStyles[theme].buttonBg
             }`}
-            title={isBookmarked ? "বুকমার্ক করা হয়েছে" : "বুকমার্ক করুন"}
-            id="reader-bookmark-btn"
+            title="ফন্ট ও থিম"
           >
-            {isBookmarked ? <BookmarkCheck className="w-5 h-5 fill-brand-gold text-brand-gold" /> : <Bookmark className="w-5 h-5" />}
+            <Type className="w-4 h-4" />
           </button>
 
-          {/* Chapter drawer trigger */}
+          {/* Bookmark */}
+          <button
+            onClick={toggleBookmark}
+            className={`p-2 rounded-full active:scale-95 transition-all cursor-pointer ${themeStyles[theme].buttonBg}`}
+            title={isBookmarked ? "বুকমার্ক সংরক্ষিত" : "বুকমার্ক করুন"}
+            id="reader-bookmark-btn"
+          >
+            {isBookmarked ? (
+              <BookmarkCheck className="w-4 h-4 text-[#0071E3] fill-[#0071E3]" />
+            ) : (
+              <Bookmark className="w-4 h-4 opacity-70" />
+            )}
+          </button>
+
+          {/* Chapters Table */}
           <button
             onClick={() => setShowChaptersMenu(true)}
-            className={`p-2.5 rounded-full hover:bg-neutral-500/10 transition-colors duration-300 flex items-center gap-1 ${
-              theme === "night" ? "text-brand-gold hover:text-white" : "text-brand-gold hover:text-brand-charcoal"
-            }`}
+            className={`p-2 rounded-full active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 ${themeStyles[theme].buttonBg}`}
             title="সূচিপত্র"
             id="reader-chapters-btn"
           >
-            <ListOrdered className="w-5 h-5" />
-            <span className="text-xs font-semibold font-sans-bengali hidden md:inline">সূচিপত্র</span>
+            <ListOrdered className="w-4 h-4" />
           </button>
         </div>
-      </nav>
+      </header>
 
-      {/* Main Reading Canvas */}
-      <main className="flex-1 max-w-2xl mx-auto w-full px-5 py-8 md:px-8 md:py-16 flex flex-col justify-between">
-        {/* Settings Bar */}
-        <div className={`p-4 rounded-2xl mb-8 border transition-all duration-300 flex flex-wrap gap-4 items-center justify-between shadow-sm ${themeStyles[theme].panel}`} id="reader-quick-settings">
-          <div className="flex items-center gap-2">
-            <Sliders className={`w-4 h-4 ${theme === "night" ? "text-neutral-400" : "text-brand-charcoal/50"}`} />
-            <span className={`text-xs font-semibold font-sans-bengali ${theme === "night" ? "text-neutral-300" : "text-brand-charcoal/70"}`}>পাঠকীয় সুবিধা:</span>
-          </div>
+      {/* Apple Books AA Settings Floating Card */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 450, damping: 30 }}
+            className={`fixed top-16 right-4 sm:right-8 z-50 w-72 rounded-[20px] p-4 border ${themeStyles[theme].panel} ${themeStyles[theme].text}`}
+          >
+            <div className="space-y-4 text-xs font-sans-bengali">
+              {/* Themes Selector */}
+              <div className="space-y-1.5">
+                <span className={`text-[10px] font-medium uppercase tracking-wider ${themeStyles[theme].muted}`}>
+                  থিম
+                </span>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/[0.04] dark:bg-white/[0.06] rounded-full">
+                  <button
+                    onClick={() => setTheme("day")}
+                    className={`py-1.5 rounded-full flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      theme === "day" ? "bg-white text-black shadow-sm font-semibold" : "opacity-70"
+                    }`}
+                  >
+                    <Sun className="w-3 h-3" />
+                    <span>দিবা</span>
+                  </button>
+                  <button
+                    onClick={() => setTheme("sepia")}
+                    className={`py-1.5 rounded-full transition-all cursor-pointer ${
+                      theme === "sepia" ? "bg-[#3C3228] text-[#FAF8F5] shadow-sm font-semibold" : "opacity-70"
+                    }`}
+                  >
+                    সেপিয়া
+                  </button>
+                  <button
+                    onClick={() => setTheme("night")}
+                    className={`py-1.5 rounded-full flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      theme === "night" ? "bg-[#1C1C1E] text-white shadow-sm font-semibold" : "opacity-70"
+                    }`}
+                  >
+                    <Moon className="w-3 h-3" />
+                    <span>রাত্রি</span>
+                  </button>
+                </div>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Theme Selectors */}
-            <div className="flex items-center gap-1 border border-brand-gold/20 p-0.5 rounded-xl bg-black/5 dark:bg-white/5">
-              <button
-                onClick={() => setTheme("day")}
-                className={`text-xs font-sans-bengali px-2.5 py-1 rounded-lg transition-colors ${
-                  theme === "day" ? "bg-white text-brand-charcoal shadow-sm" : "text-neutral-500 hover:text-brand-charcoal"
-                }`}
-              >
-                <Sun className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setTheme("sepia")}
-                className={`text-xs font-semibold font-sans-bengali px-2.5 py-1 rounded-lg transition-colors ${
-                  theme === "sepia" ? "bg-[rgb(197,164,126)] text-[rgb(74,53,30)] shadow-sm" : "text-neutral-500 hover:text-brand-charcoal"
-                }`}
-              >
-                সেপিয়া
-              </button>
-              <button
-                onClick={() => setTheme("night")}
-                className={`text-xs font-sans-bengali px-2.5 py-1 rounded-lg transition-colors ${
-                  theme === "night" ? "bg-neutral-800 text-white shadow-xs" : "text-neutral-500 hover:text-brand-charcoal"
-                }`}
-              >
-                <Moon className="w-3.5 h-3.5" />
-              </button>
+              {/* Font Type */}
+              <div className="space-y-1.5">
+                <span className={`text-[10px] font-medium uppercase tracking-wider ${themeStyles[theme].muted}`}>
+                  টাইপোগ্রাফি
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setIsSerif(true)}
+                    className={`py-1.5 rounded-full border transition-all cursor-pointer ${
+                      isSerif ? "border-[#0071E3] text-[#0071E3] font-semibold" : "border-black/[0.08] dark:border-white/[0.08]"
+                    }`}
+                  >
+                    সেরিফ (Serif)
+                  </button>
+                  <button
+                    onClick={() => setIsSerif(false)}
+                    className={`py-1.5 rounded-full border transition-all cursor-pointer ${
+                      !isSerif ? "border-[#0071E3] text-[#0071E3] font-semibold" : "border-black/[0.08] dark:border-white/[0.08]"
+                    }`}
+                  >
+                    সানস (Sans)
+                  </button>
+                </div>
+              </div>
+
+              {/* Font Size Stepper */}
+              <div className="space-y-1.5">
+                <span className={`text-[10px] font-medium uppercase tracking-wider ${themeStyles[theme].muted}`}>
+                  ফন্ট সাইজ
+                </span>
+                <div className="flex items-center justify-between bg-black/[0.04] dark:bg-white/[0.06] p-1.5 rounded-full">
+                  <button
+                    onClick={() => setFontSize(Math.max(14, fontSize - 2))}
+                    className="w-8 h-8 rounded-full bg-white dark:bg-black/30 shadow-xs flex items-center justify-center font-bold text-sm cursor-pointer active:scale-95"
+                  >
+                    A-
+                  </button>
+                  <span className="font-mono text-xs">{fontSize}px</span>
+                  <button
+                    onClick={() => setFontSize(Math.min(28, fontSize + 2))}
+                    className="w-8 h-8 rounded-full bg-white dark:bg-black/30 shadow-xs flex items-center justify-center font-bold text-sm cursor-pointer active:scale-95"
+                  >
+                    A+
+                  </button>
+                </div>
+              </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Font Type toggler */}
-            <button
-              onClick={() => setIsSerif(!isSerif)}
-              className={`text-xs font-sans-bengali border border-brand-gold/25 px-2.5 py-1.5 rounded-xl hover:bg-neutral-500/10 transition-colors ${
-                theme === "night" ? "text-white" : "text-brand-charcoal"
-              }`}
-            >
-              {isSerif ? "অভিনব ফন্ট (Serif)" : "আধুনিক ফন্ট (Sans)"}
-            </button>
-
-            {/* Font Size Tuners */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setFontSize(Math.max(14, fontSize - 2))}
-                className={`w-8 h-8 rounded-full border border-brand-gold/15 flex items-center justify-center font-bold font-sans text-xs hover:bg-neutral-500/10 ${
-                  theme === "night" ? "text-white hover:text-brand-gold" : "text-brand-charcoal"
-                }`}
-              >
-                অ-
-              </button>
-              <span className={`text-xs font-mono font-semibold px-1 ${theme === "night" ? "text-neutral-400" : "text-brand-charcoal/60"}`}>{fontSize}px</span>
-              <button
-                onClick={() => setFontSize(Math.min(28, fontSize + 2))}
-                className={`w-8 h-8 rounded-full border border-brand-gold/15 flex items-center justify-center font-bold font-sans text-xs hover:bg-neutral-500/10 ${
-                  theme === "night" ? "text-white hover:text-brand-gold" : "text-brand-charcoal"
-                }`}
-              >
-                অ+
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Main Reading Article */}
+      <main className="flex-1 max-w-2xl mx-auto w-full px-5 sm:px-8 py-8 md:py-14 flex flex-col justify-between">
         
-        {/* Real-time Content Typography Canvas */}
-        <article 
-          className={`leading-[2.1] md:leading-[2.3] outline-none text-justify ${
+        {/* Article Content */}
+        <article
+          className={`leading-[2.2] md:leading-[2.4] outline-none select-text ${
             isSerif ? "font-serif-bengali" : "font-sans-bengali"
           } ${themeStyles[theme].text}`}
           style={{ fontSize: `${fontSize}px` }}
           id="reader-text-canvas"
         >
           {/* Chapter Header */}
-          <div className="border-b border-brand-gold/15 pb-6 mb-10 text-center">
-            <p className="text-xs uppercase tracking-widest text-brand-gold font-bold mb-2">অধ্যায় - {currentChapterIndex + 1}</p>
-            <h1 className="text-2xl md:text-3.5xl font-extrabold tracking-tight mt-1">
+          <div className="border-b border-black/[0.06] dark:border-white/[0.08] pb-6 mb-10 text-center">
+            <p className="text-xs font-mono text-[#0071E3] uppercase tracking-wider mb-2 font-semibold">
+              অধ্যায় {currentChapterIndex + 1}
+            </p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               {activeChapter.title}
             </h1>
-            <div className="w-16 h-0.5 bg-brand-gold mx-auto mt-4" />
           </div>
 
-          {/* Chapter Paragraphs */}
-          <div className="space-y-8 select-text">
+          {/* Paragraphs */}
+          <div className="space-y-6">
             {activeChapter.content.split("\n\n").map((para, idx) => (
-              <p key={idx} className="indent-8 relative">
+              <p key={idx} className="indent-6">
                 {para}
               </p>
             ))}
           </div>
         </article>
 
-        {/* Footer Navigation Buttons */}
-        <div className="flex items-center justify-between border-t border-brand-gold/15 pt-8 mt-16 pb-12" id="reader-foot-navigation">
+        {/* Footer Navigation */}
+        <div className="flex items-center justify-between border-t border-black/[0.06] dark:border-white/[0.08] pt-8 mt-16 pb-12 font-sans-bengali text-xs">
           <button
             onClick={prevChapter}
             disabled={currentChapterIndex === 0}
-            className={`flex items-center gap-1 px-4 py-2.5 rounded-xl border border-brand-gold/15 text-xs font-semibold font-sans-bengali transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${
-              theme === "night" ? "text-white hover:border-brand-gold hover:text-brand-gold" : "text-brand-charcoal hover:bg-white"
-            }`}
+            className={`flex items-center gap-1 px-4 py-2 rounded-full border border-black/[0.08] dark:border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all cursor-pointer ${themeStyles[theme].buttonBg}`}
             id="reader-prev-chapter-btn"
           >
             <ChevronLeft className="w-4 h-4" />
-            পূর্ববর্তী
+            <span>পূর্ববর্তী অধ্যায়</span>
           </button>
 
-          <span className={`text-xs font-semibold font-sans-bengali ${theme === "night" ? "text-neutral-400" : "text-brand-charcoal/60"}`}>
+          <span className={`font-mono text-xs font-semibold ${themeStyles[theme].muted}`}>
             {Math.round(((currentChapterIndex + 1) / book.chapters.length) * 100)}%
           </span>
 
           <button
             onClick={nextChapter}
             disabled={currentChapterIndex === book.chapters.length - 1}
-            className={`flex items-center gap-1 px-4 py-2.5 rounded-xl border border-brand-gold/15 text-xs font-semibold font-sans-bengali transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed ${
-              theme === "night" ? "text-white hover:border-brand-gold hover:text-brand-gold" : "text-brand-charcoal hover:bg-white"
-            }`}
+            className={`flex items-center gap-1 px-4 py-2 rounded-full border border-black/[0.08] dark:border-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all cursor-pointer ${themeStyles[theme].buttonBg}`}
             id="reader-next-chapter-btn"
           >
-            পরবর্তী
+            <span>পরবর্তী অধ্যায়</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </main>
 
-      {/* Slide-out Chapters Panel Menu Drawer */}
+      {/* Apple Books Style Chapter Sheet */}
       <AnimatePresence>
         {showChaptersMenu && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.5 }}
+              animate={{ opacity: 0.4 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowChaptersMenu(false)}
               className="fixed inset-0 z-[100] bg-black"
             />
-            
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
               className={`fixed top-0 right-0 bottom-0 z-[101] w-full max-w-xs p-6 shadow-2xl flex flex-col justify-between ${
-                theme === "night" ? "bg-[rgb(24,24,24)] text-white" : "bg-brand-beige text-brand-charcoal"
+                theme === "night" ? "bg-[#1C1C1E] text-white" : "bg-white text-[#1D1D1F]"
               }`}
               id="reader-chapters-drawer"
             >
               <div>
-                <div className="flex items-center justify-between border-b border-brand-gold/10 pb-4 mb-6">
-                  <h3 className="text-lg font-bold font-serif-bengali flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-brand-gold" />
-                    সূচিপত্র
-                  </h3>
-                  <button 
+                <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] pb-3 mb-4">
+                  <h3 className="font-serif-bengali font-bold text-base">সূচিপত্র</h3>
+                  <button
                     onClick={() => setShowChaptersMenu(false)}
-                    className="p-1 rounded-full hover:bg-neutral-500/10"
+                    className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
+                <div className="space-y-1.5 overflow-y-auto max-h-[75vh] pr-1">
                   {book.chapters.map((ch, idx) => {
                     const isSelected = idx === currentChapterIndex;
                     return (
                       <button
-                        key={ch.id}
+                        key={ch.id || idx}
                         onClick={() => {
                           setCurrentChapterIndex(idx);
                           setShowChaptersMenu(false);
                           if (containerRef.current) containerRef.current.scrollTop = 0;
                         }}
-                        className={`w-full text-left p-3.5 rounded-xl border text-xs font-sans-bengali flex items-center justify-between transition-colors ${
-                          isSelected 
-                            ? "bg-brand-gold border-brand-gold text-brand-charcoal font-semibold"
-                            : theme === "night"
-                              ? "border-neutral-800 hover:bg-neutral-800"
-                              : "border-brand-gold/10 hover:bg-white shadow-xs"
+                        className={`w-full text-left p-3 rounded-[12px] text-xs font-sans-bengali flex items-center justify-between transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#0071E3] text-white font-semibold"
+                            : "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                         }`}
-                        id={`reader-drawer-ch-${idx}`}
                       >
                         <span className="line-clamp-1">{ch.title}</span>
-                        {isSelected && <span className="text-[9px] uppercase tracking-wider bg-brand-charcoal text-brand-gold px-1.5 py-0.5 rounded font-bold">পঠনরত</span>}
-                        {!isSelected && idx === lastReadChapterIndex && <span className="text-[9px] uppercase tracking-wider bg-amber-600 text-white px-1.5 py-0.5 rounded font-bold">শেষ পঠিত</span>}
+                        {isSelected && (
+                          <span className="text-[10px] font-mono pl-2">
+                            চলতি
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="border-t border-brand-gold/10 pt-4 text-center">
-                <p className="text-[10px] text-brand-gold/70 font-sans-bengali font-light">
-                  {book.title} • {book.author}
+              <div className="border-t border-black/[0.06] dark:border-white/[0.08] pt-3 text-center">
+                <p className="text-[10px] text-[#86868B] font-sans-bengali">
+                  {book.title} · {book.author}
                 </p>
               </div>
             </motion.div>
