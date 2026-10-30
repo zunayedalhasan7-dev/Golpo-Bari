@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, Award, Home, MoreVertical, X, Sparkles, Smartphone } from "lucide-react";
+import { BookOpen, Award, Home, MoreVertical, X, Sparkles, Smartphone, ShieldCheck } from "lucide-react";
 
 interface NavbarProps {
   navigateToPage: (page: string) => void;
@@ -69,14 +69,27 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
             })}
           </nav>
 
-          {/* Action */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Action Buttons */}
+          <div className="hidden md:flex items-center gap-2.5">
             <button
               onClick={() => navigateToPage("apps")}
               className="bg-brand-gold/15 hover:bg-brand-gold/25 text-brand-charcoal text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Smartphone className="w-3.5 h-3.5 text-brand-gold" />
               অ্যাপ ডাউনলোড
+            </button>
+
+            <button
+              onClick={() => navigateToPage("admin")}
+              className={`text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+                currentPage === "admin"
+                  ? "bg-brand-charcoal text-brand-gold"
+                  : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"
+              }`}
+              title="লেখক ও অ্যাপ আপলোড অ্যাডমিন প্যানেল"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-brand-gold" />
+              অ্যাডমিন
             </button>
           </div>
         </div>
@@ -90,7 +103,7 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
               initial={{ opacity: 0, scale: 0.9, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 15 }}
-              className="bg-brand-charcoal text-white rounded-2xl shadow-xl p-2 w-48 space-y-1"
+              className="bg-brand-charcoal text-white rounded-2xl shadow-xl p-2 w-52 space-y-1"
             >
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -111,6 +124,21 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
                   </button>
                 );
               })}
+
+              <div className="border-t border-white/10 my-1 pt-1">
+                <button
+                  onClick={() => {
+                    navigateToPage("admin");
+                    setIsMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs ${
+                    currentPage === "admin" ? "bg-brand-gold text-brand-charcoal font-bold" : "text-amber-400 hover:bg-white/10"
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>অ্যাডমিন প্যানেল</span>
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
