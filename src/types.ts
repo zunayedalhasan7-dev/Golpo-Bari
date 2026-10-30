@@ -6,6 +6,7 @@ export interface Chapter {
 
 export interface Review {
   id: string;
+  bookId: string;
   user: string;
   rating: number;
   comment: string;
@@ -50,3 +51,20 @@ export interface CartItem {
   edition: "digital" | "paperback";
 }
 
+export interface AppItem {
+  id: string;
+  name: string;
+  category: string; // e.g. "অ্যান্ড্রয়েড অ্যাপ (APK)", "ই-রিডার", "ইউটিলিটি", "টুলস"
+  version: string; // e.g. "v1.0.0"
+  size: string; // e.g. "18.2 MB"
+  downloadUrl: string; // direct /uploads/... or external URL
+  iconUrl?: string; // app logo/icon
+  description: string;
+  features?: string[];
+  platform: string; // "Android" | "Windows" | "Web" | "Cross-Platform"
+  downloadsCount: number;
+  releaseDate: string;
+  isPublished?: boolean;
+  packageName?: string;
+  createdAt?: any;
+}

@@ -8,6 +8,7 @@ interface BookCardProps {
   book: Book;
   onSelect: (book: Book) => void;
   onRead: (book: Book) => void;
+  onBuy?: (book: Book) => void;
   isLoggedIn: boolean;
   onDownloadAuthNeeded: () => void;
 }

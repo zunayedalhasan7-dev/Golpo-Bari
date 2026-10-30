@@ -82,6 +82,14 @@ export default function Footer({ onPageChange, onAdminOpen }: FooterProps) {
               </li>
               <li>
                 <button
+                  onClick={() => onPageChange("apps")}
+                  className="hover:text-[#0071E3] transition-colors cursor-pointer"
+                >
+                  মোবাইল অ্যাপস
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => onPageChange("premium")}
                   className="hover:text-[#0071E3] transition-colors cursor-pointer"
                 >

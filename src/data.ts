@@ -138,3 +138,27 @@ export const BOOK_DATA: Book[] = [
 export const BENGALI_QUOTES = [
   "একখানি উত্তম গ্রন্থ নীরব বন্ধুস্বরূপ, যাহা অপেক্ষা নিবিড়তর ও একান্ত নির্ভরযোগ্য কোনো সহচর এ জগতে নাই"
 ];
+
+export const DEFAULT_APPS = [
+  {
+    id: "app-golpobari-reader",
+    name: "গল্পবাড়ি অফিসিয়াল রিডার অ্যাপ",
+    category: "অ্যান্ড্রয়েড অ্যাপ (APK)",
+    version: "v1.2.0",
+    size: "14.8 MB",
+    downloadUrl: "https://github.com",
+    iconUrl: "https://i.postimg.cc/KvdBcxT5/daabb61c-d861-4bce-97f3-a904a33af923-Photoroom.png",
+    description: "জুনায়েদ হাসানের সমস্ত উপন্যাস অফলাইনে পড়ার জন্য সম্পূর্ণ বিজ্ঞাপনমুক্ত অফিসিয়াল অ্যান্ড্রয়েড অ্যাপ্লিকেশন। নাইট মোড ও ফন্ট কাস্টমাইজেশন সুবিধা সহ।",
+    features: [
+      "অফলাইনে সমস্ত উপন্যাস পড়ার সুবিধা",
+      "আঁধার ও আলো (Dark & Sepia) মোড",
+      "বুকমার্ক ও ফন্ট সাইজ অ্যাডজাস্টমেন্ট",
+      "সম্পূর্ণ বিনামূল্যে ও বিজ্ঞাপনহীন"
+    ],
+    platform: "Android",
+    downloadsCount: 1420,
+    releaseDate: "২০২৬",
+    isPublished: true,
+    packageName: "com.golpobari.reader"
+  }
+];

@@ -1,7 +1,27 @@
-import React, { useState, FormEvent } from "react";
-import { Book, Chapter } from "../types";
+import React, { useState, FormEvent, ChangeEvent } from "react";
+import { Book, Chapter, AppItem } from "../types";
 import { NOVELIST_NAME } from "../data";
-import { X, Plus, Trash, Edit, Check, ShieldCheck, Key, RefreshCw, Star, StarOff, Sparkles, BookOpen, Award, User } from "lucide-react";
+import { 
+  X, 
+  Plus, 
+  Trash, 
+  Edit, 
+  Check, 
+  ShieldCheck, 
+  Key, 
+  Sparkles, 
+  BookOpen, 
+  Award, 
+  User, 
+  Smartphone, 
+  Upload, 
+  Download, 
+  HardDrive, 
+  ExternalLink,
+  Layers,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { convertBijoyToUnicode } from "bijoy2unicode";
 
@@ -10,6 +30,10 @@ interface AdminDashboardProps {
   onAddBook: (newBook: Book) => void;
   onUpdateBook: (updatedBook: Book) => void;
   onDeleteBook: (id: string) => void;
+  apps?: AppItem[];
+  onAddApp?: (newApp: AppItem) => void;
+  onUpdateApp?: (updatedApp: AppItem) => void;
+  onDeleteApp?: (id: string) => void;
   onClose: () => void;
   isAdmin?: boolean;
   paymentRequests?: any[];
@@ -24,6 +48,10 @@ export default function AdminDashboard({
   onAddBook, 
   onUpdateBook, 
   onDeleteBook, 
+  apps = [],
+  onAddApp = () => {},
+  onUpdateApp = () => {},
+  onDeleteApp = () => {},
   onClose, 
   isAdmin = false,
   paymentRequests = [],
@@ -48,16 +76,19 @@ export default function AdminDashboard({
     }
   };
 
-  // Tab State: "list" | "create" | "edit" | "payments" | "bio"
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "edit" | "payments" | "bio">("list");
+  // Tab State: "list" | "create" | "edit" | "apps" | "create_app" | "edit_app" | "payments" | "bio"
+  const [activeTab, setActiveTab] = useState<
+    "list" | "create" | "edit" | "apps" | "create_app" | "edit_app" | "payments" | "bio"
+  >("list");
   
   // Selection for edit
   const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [editingAppId, setEditingAppId] = useState<string | null>(null);
 
   // Bio state in editor
   const [tempBio, setTempBio] = useState(authorBio);
 
-  // Form State
+  // Book Form State
   const [title, setTitle] = useState("");
   const [titleEn, setTitleEn] = useState("");
   const [genre, setGenre] = useState("ম্যাজিকাল রিয়ালিজম");
@@ -71,12 +102,25 @@ export default function AdminDashboard({
   const [popular, setPopular] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [customCoverUrl, setCustomCoverUrl] = useState("");
-  
+
+  // App Form State
+  const [appName, setAppName] = useState("");
+  const [appCategory, setAppCategory] = useState("অ্যান্ড্রয়েড অ্যাপ (APK)");
+  const [appVersion, setAppVersion] = useState("v1.0.0");
+  const [appSize, setAppSize] = useState("15.0 MB");
+  const [appDownloadUrl, setAppDownloadUrl] = useState("");
+  const [appIconUrl, setAppIconUrl] = useState("");
+  const [appDescription, setAppDescription] = useState("");
+  const [appPlatform, setAppPlatform] = useState("Android");
+  const [appFeaturesText, setAppFeaturesText] = useState("অফলাইনে উপন্যাস পড়ার সুবিধা\nডার্ক ও সেপিয়া রিডিং মোড\nবিজ্ঞাপনহীন মসৃণ অভিজ্ঞতা");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState("");
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+
   // Custom Bijoy to Unicode translator helper
   const fixBijoyText = (text: string): string => {
     if (!text) return "";
     try {
-      // Direct call to high-fidelity bijoy2unicode converter
       const result = convertBijoyToUnicode(text);
       return result || text;
     } catch (e) {
@@ -126,11 +170,10 @@ export default function AdminDashboard({
     setChapters(chapters.map((ch) => (ch.id === id ? { ...ch, content: text } : ch)));
   };
 
-  // Replace alert with on-page error
   const [formError, setFormError] = useState("");
 
-  // Form Submitter
-  const handleSubmit = (e: FormEvent) => {
+  // Book Form Submitter
+  const handleSubmitBook = (e: FormEvent) => {
     e.preventDefault();
     setFormError("");
     if (!title || !shortDesc) {
@@ -150,52 +193,177 @@ export default function AdminDashboard({
         longDesc: longDesc || shortDesc,
         coverUrl,
         isPremium,
-        price: isPremium ? Number(price) : 0,
+        price: isPremium ? price : 0,
         rating: 5.0,
         reviewsCount: 1,
-        pages: Number(pages),
-        publishedDate: "আজ, ১৪৩৩",
+        pages,
+        publishedDate: "২০২৬",
         readTime,
         featured,
         popular,
         views: 120,
         chapters,
-        pdfUrl: pdfUrl.trim() || undefined,
+        pdfUrl: pdfUrl.trim() || undefined
       };
-      
       onAddBook(newBook);
-      resetForm();
-      setActiveTab("list");
     } else if (activeTab === "edit" && editingBookId) {
-      const original = books.find((b) => b.id === editingBookId);
-      if (!original) return;
-
+      const existing = books.find(b => b.id === editingBookId);
       const updatedBook: Book = {
-        ...original,
+        id: editingBookId,
         title,
-        titleEn: titleEn || original.titleEn,
+        titleEn: titleEn || existing?.titleEn || "untitled_book",
+        author: NOVELIST_NAME,
         genre,
         shortDesc,
-        longDesc: longDesc || original.longDesc,
-        coverUrl: customCoverUrl.trim() || original.coverUrl || generatePremiumSVG(title, genre),
+        longDesc: longDesc || shortDesc,
+        coverUrl: customCoverUrl.trim() || existing?.coverUrl || generatePremiumSVG(title, genre),
         isPremium,
-        price: isPremium ? Number(price) : 0,
-        pages: Number(pages),
+        price: isPremium ? price : 0,
+        rating: existing?.rating || 5.0,
+        reviewsCount: existing?.reviewsCount || 1,
+        pages,
+        publishedDate: existing?.publishedDate || "২০২৬",
         readTime,
         featured,
         popular,
+        views: existing?.views || 100,
         chapters,
-        pdfUrl: pdfUrl.trim() || undefined,
+        pdfUrl: pdfUrl.trim() || undefined
       };
-
       onUpdateBook(updatedBook);
-      resetForm();
-      setActiveTab("list");
+    }
+
+    resetBookForm();
+    setActiveTab("list");
+  };
+
+  // App File Upload Handler
+  const handleAppFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    setUploadStatusMsg(`আপলোড হচ্ছে: ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success && data.fileUrl) {
+        setAppDownloadUrl(data.fileUrl);
+        if (data.sizeFormatted) {
+          setAppSize(data.sizeFormatted);
+        }
+        if (!appName) {
+          // Auto set app name from filename
+          const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+          setAppName(cleanName);
+        }
+        setUploadStatusMsg(`✅ সফলভাবে আপলোড হয়েছে: ${file.name} (${data.sizeFormatted})`);
+      } else {
+        setUploadStatusMsg(`❌ আপলোড ব্যর্থ: ${data.error || "অজানা সমস্যা"}`);
+      }
+    } catch (err: any) {
+      console.error("App upload error:", err);
+      setUploadStatusMsg("❌ সার্ভারে আপলোড করা সম্ভব হয়নি। সরাসরি ডাউনলোড লিংক দিন।");
+    } finally {
+      setIsUploadingFile(false);
     }
   };
 
-  // Edit load trigger
-  const handleEditTrigger = (b: Book) => {
+  // App Icon Upload Handler
+  const handleAppIconUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingIcon(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload-file", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success && data.fileUrl) {
+        setAppIconUrl(data.fileUrl);
+      }
+    } catch (err) {
+      console.error("App icon upload error:", err);
+    } finally {
+      setIsUploadingIcon(false);
+    }
+  };
+
+  // App Form Submitter
+  const handleSubmitApp = (e: FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (!appName.trim()) {
+      setFormError("অ্যাপের নাম পূরণ করুন।");
+      return;
+    }
+    if (!appDownloadUrl.trim()) {
+      setFormError("অ্যাপের ফাইল আপলোড করুন অথবা ডাউনলোড লিংক দিন।");
+      return;
+    }
+
+    const featuresList = appFeaturesText
+      .split("\n")
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0);
+
+    if (activeTab === "create_app") {
+      const newApp: AppItem = {
+        id: `app-${Date.now()}`,
+        name: appName.trim(),
+        category: appCategory || "অ্যান্ড্রয়েড অ্যাপ (APK)",
+        version: appVersion.trim() || "v1.0.0",
+        size: appSize.trim() || "15.0 MB",
+        downloadUrl: appDownloadUrl.trim(),
+        iconUrl: appIconUrl.trim() || "https://i.postimg.cc/KvdBcxT5/daabb61c-d861-4bce-97f3-a904a33af923-Photoroom.png",
+        description: appDescription.trim() || "গল্পবাড়ি অফিসিয়াল মোবাইল অ্যাপ্লিকেশন।",
+        features: featuresList.length > 0 ? featuresList : ["দ্রুত ডাউনলোড ও অফলাইন ব্যবহার", "বিজ্ঞাপনমুক্ত পরিবেশ"],
+        platform: appPlatform || "Android",
+        downloadsCount: 0,
+        releaseDate: "২০২৬",
+        isPublished: true,
+      };
+      onAddApp(newApp);
+    } else if (activeTab === "edit_app" && editingAppId) {
+      const existing = apps.find((a) => a.id === editingAppId);
+      const updatedApp: AppItem = {
+        id: editingAppId,
+        name: appName.trim(),
+        category: appCategory || "অ্যান্ড্রয়েড অ্যাপ (APK)",
+        version: appVersion.trim() || "v1.0.0",
+        size: appSize.trim() || "15.0 MB",
+        downloadUrl: appDownloadUrl.trim(),
+        iconUrl: appIconUrl.trim() || existing?.iconUrl || "",
+        description: appDescription.trim(),
+        features: featuresList,
+        platform: appPlatform || "Android",
+        downloadsCount: existing?.downloadsCount || 0,
+        releaseDate: existing?.releaseDate || "২০২৬",
+        isPublished: true,
+      };
+      onUpdateApp(updatedApp);
+    }
+
+    resetAppForm();
+    setActiveTab("apps");
+  };
+
+  const handleEditBookTrigger = (b: Book) => {
     setEditingBookId(b.id);
     setTitle(b.title);
     setTitleEn(b.titleEn);
@@ -214,7 +382,21 @@ export default function AdminDashboard({
     setActiveTab("edit");
   };
 
-  const resetForm = () => {
+  const handleEditAppTrigger = (app: AppItem) => {
+    setEditingAppId(app.id);
+    setAppName(app.name);
+    setAppCategory(app.category || "অ্যান্ড্রয়েড অ্যাপ (APK)");
+    setAppVersion(app.version || "v1.0.0");
+    setAppSize(app.size || "15 MB");
+    setAppDownloadUrl(app.downloadUrl || "");
+    setAppIconUrl(app.iconUrl || "");
+    setAppDescription(app.description || "");
+    setAppPlatform(app.platform || "Android");
+    setAppFeaturesText((app.features || []).join("\n"));
+    setActiveTab("edit_app");
+  };
+
+  const resetBookForm = () => {
     setEditingBookId(null);
     setTitle("");
     setTitleEn("");
@@ -232,6 +414,20 @@ export default function AdminDashboard({
     setChapters([{ id: "ch-1", title: "১. উম্মোচন", content: "গল্প লিখুন..." }]);
   };
 
+  const resetAppForm = () => {
+    setEditingAppId(null);
+    setAppName("");
+    setAppCategory("অ্যান্ড্রয়েড অ্যাপ (APK)");
+    setAppVersion("v1.0.0");
+    setAppSize("15.0 MB");
+    setAppDownloadUrl("");
+    setAppIconUrl("");
+    setAppDescription("");
+    setAppPlatform("Android");
+    setAppFeaturesText("অফলাইনে উপন্যাস পড়ার সুবিধা\nডার্ক ও সেপিয়া রিডিং মোড\nবিজ্ঞাপনহীন মসৃণ অভিজ্ঞতা");
+    setUploadStatusMsg("");
+  };
+
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8" id="admin-page-container">
       <AnimatePresence mode="wait">
@@ -245,7 +441,7 @@ export default function AdminDashboard({
           >
             <button 
               onClick={onClose}
-              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-neutral-500/10"
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-neutral-500/10 cursor-pointer"
               id="admin-auth-close"
             >
               <X className="w-4 h-4 text-brand-charcoal/50" />
@@ -257,13 +453,13 @@ export default function AdminDashboard({
               </div>
 
               <div>
-                <h3 className="text-xl font-bold font-serif-bengali text-brand-charcoal">গল্পবাড়ি লেখক প্রবেশদ্বার</h3>
-                <p className="text-xs font-sans-bengali text-brand-charcoal/50 mt-1">প্যানেলটি শুধুমাত্র অনুমোদিত ব্যবহারের জন্য সুরক্ষিত।</p>
+                <h3 className="text-xl font-bold font-serif-bengali text-brand-charcoal">গল্পবাড়ি লেখক ও অ্যাপ কন্ট্রোল</h3>
+                <p className="text-xs font-sans-bengali text-brand-charcoal/50 mt-1">বই ও মোবাইল অ্যাপ আপলোড করতে পাসকোড দিন।</p>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-4 pt-2">
                 <div>
-                  <label className="block text-left text-xs font-semibold text-brand-charcoal/60 mb-1.5 font-sans-bengali">আপনি পাসকোড দিন:</label>
+                  <label className="block text-left text-xs font-semibold text-brand-charcoal/60 mb-1.5 font-sans-bengali">পাসকোড:</label>
                   <input
                     type="password"
                     placeholder="••••"
@@ -283,7 +479,7 @@ export default function AdminDashboard({
 
                 <button
                   type="submit"
-                  className="w-full bg-brand-charcoal text-brand-gold px-4 py-3 rounded-xl text-xs font-bold font-sans-bengali shadow-md hover:bg-brand-charcoal/90 transition-all flex items-center justify-center gap-1.5 border border-brand-gold/20"
+                  className="w-full bg-brand-charcoal text-brand-gold px-4 py-3 rounded-xl text-xs font-bold font-sans-bengali shadow-md hover:bg-brand-charcoal/90 transition-all flex items-center justify-center gap-1.5 border border-brand-gold/20 cursor-pointer"
                   id="admin-auth-submit"
                 >
                   <ShieldCheck className="w-4 h-4" />
@@ -296,627 +492,913 @@ export default function AdminDashboard({
           <motion.div
             initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full bg-brand-beige border border-brand-gold/25 shadow-2xl rounded-3xl overflow-hidden flex flex-col min-h-[70vh]"
+            className="w-full bg-[#FDFDFC] border border-brand-gold/25 shadow-2xl rounded-3xl overflow-hidden flex flex-col min-h-[75vh]"
             id="admin-dashboard-panel"
           >
-        {/* Header */}
-        <div className="bg-brand-charcoal p-5 md:px-8 flex items-center justify-between border-b border-brand-gold/20">
-          <div className="flex items-center space-x-3 text-brand-beige">
-            <div className="w-10 h-10 rounded-full bg-brand-gold text-brand-charcoal flex items-center justify-center font-bold text-lg font-serif-bengali shadow-md">
-              লে
-            </div>
-            <div>
-              <h2 className="font-bold text-lg md:text-xl font-serif-bengali text-brand-gold flex items-center gap-1.5">
-                রচনালয় <span className="text-[10px] bg-brand-gold-dark/30 border border-brand-gold/30 text-brand-gold px-2 py-0.5 rounded-full font-light font-sans-bengali">লেখক ড্যাশবোর্ড</span>
-              </h2>
-              <p className="text-[10px] md:text-xs text-brand-beige/50 font-sans-bengali">অনন্য প্রকাশনা, সম্পাদনা ও সংকলন কক্ষ</p>
-            </div>
-          </div>
-
-          <button 
-            onClick={onClose}
-            className="p-2.5 rounded-full hover:bg-white/10 transition-colors duration-300 text-brand-beige/70 hover:text-white"
-            id="admin-panel-close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Dashboard Workspace */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Sidebar Navigation Tabs */}
-          <aside className="w-full md:w-56 bg-brand-sepia/40 border-b md:border-b-0 md:border-r border-brand-gold/15 p-4 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible">
-            <button
-              onClick={() => { setActiveTab("list"); resetForm(); }}
-              className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-colors ${
-                activeTab === "list" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-brand-charcoal/60 hover:bg-brand-gold/10"
-              }`}
-              id="admin-tab-list"
-            >
-              <BookOpen className="w-4 h-4" />
-              বইয়ের তালিকা ({books.length})
-            </button>
-            <button
-              onClick={() => { setActiveTab("create"); resetForm(); }}
-              className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-colors shrink-0 md:shrink ${
-                activeTab === "create" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-brand-charcoal/60 hover:bg-brand-gold/10"
-              }`}
-              id="admin-tab-create"
-            >
-              <Plus className="w-4 h-4" />
-              নতুন বই প্রকাশ
-            </button>
-            <button
-              onClick={() => { setActiveTab("payments"); }}
-              className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-colors shrink-0 md:shrink ${
-                activeTab === "payments" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-brand-charcoal/60 hover:bg-brand-gold/10"
-              }`}
-              id="admin-tab-payments"
-            >
-              <Award className="w-4 h-4" />
-              পেমেন্ট রিকোয়েস্ট {paymentRequests.filter((r) => r.status === "pending").length > 0 && (
-                <span className="bg-[#E2136E] text-white font-mono text-[9px] px-1.5 py-0.2 rounded-full font-bold ml-auto animate-pulse shrink-0">
-                  {paymentRequests.filter((r) => r.status === "pending").length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => { setActiveTab("bio"); }}
-              className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-colors shrink-0 md:shrink ${
-                activeTab === "bio" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-brand-charcoal/60 hover:bg-brand-gold/10"
-              }`}
-              id="admin-tab-bio"
-            >
-              <User className="w-4 h-4" />
-              আপনার তথ্য
-            </button>
-
-            {activeTab === "edit" && (
-              <div className="w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 bg-brand-gold/25 border border-brand-gold text-brand-charcoal shrink-0 md:shrink">
-                <Edit className="w-4 h-4 text-brand-gold-dark" />
-                সম্পাদনা প্যানেল
+            {/* Header */}
+            <div className="bg-brand-charcoal p-5 md:px-8 flex items-center justify-between border-b border-brand-gold/20">
+              <div className="flex items-center space-x-3 text-brand-beige">
+                <div className="w-10 h-10 rounded-2xl bg-brand-gold text-brand-charcoal flex items-center justify-center font-bold text-lg font-serif-bengali shadow-md">
+                  ক
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg md:text-xl font-serif-bengali text-brand-gold flex items-center gap-2">
+                    কন্ট্রোল প্যানেল <span className="text-[10px] bg-brand-gold/20 text-brand-gold px-2.5 py-0.5 rounded-full font-light font-sans-bengali">বই ও অ্যাপ আপলোডার</span>
+                  </h2>
+                  <p className="text-[10px] md:text-xs text-brand-beige/50 font-sans-bengali">উপন্যাস রচনা ও মোবাইল অ্যাপ (APK) ম্যানেজমেন্ট হাব</p>
+                </div>
               </div>
-            )}
-          </aside>
 
-          {/* Central editor panel */}
-          <main className="flex-1 overflow-y-auto p-5 md:p-8" id="admin-main-canvas">
-            <AnimatePresence mode="wait">
-              {activeTab === "list" ? (
-                /* Novelist Catalog manager list */
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4"
-                  id="admin-novel-list"
+              <button 
+                onClick={onClose}
+                className="p-2.5 rounded-full hover:bg-white/10 transition-colors text-brand-beige/70 hover:text-white cursor-pointer"
+                id="admin-panel-close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Dashboard Workspace */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              {/* Sidebar Navigation Tabs */}
+              <aside className="w-full md:w-60 bg-neutral-100/70 border-b md:border-b-0 md:border-r border-black/[0.06] p-4 flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible shrink-0">
+                <div className="hidden md:block text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 py-1">
+                  উপন্যাস বিভাগ
+                </div>
+                
+                <button
+                  onClick={() => { setActiveTab("list"); resetBookForm(); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer ${
+                    activeTab === "list" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-list"
                 >
-                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">আপনার প্রকাশিত গল্পসমূহ</h4>
-                  {books.map((b) => (
-                    <div key={b.id} className="bg-white border border-brand-gold/15 rounded-2xl p-4 flex items-center justify-between shadow-xs card-hover-glow transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-16 rounded overflow-hidden aspect-[3/4] shadow bg-brand-charcoal shrink-0 flex items-center justify-center">
-                          {b.coverUrl && (b.coverUrl.startsWith("http") || b.coverUrl.startsWith("data:image") || b.coverUrl.includes(".") && !b.coverUrl.includes("<svg")) ? (
-                            <img src={b.coverUrl} className="w-full h-full object-cover" alt={b.title} referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full object-cover flex items-center justify-center" dangerouslySetInnerHTML={{ __html: b.coverUrl }} />
-                          )}
-                        </div>
-                        <div>
-                          <h5 className="font-bold text-sm md:text-base font-serif-bengali text-brand-charcoal flex items-center gap-2">
-                            {b.title}
-                            {b.isPremium ? (
-                              <span className="text-[9px] font-bold bg-brand-charcoal border border-brand-gold/30 text-brand-gold px-1.5 py-0.2 rounded font-sans-bengali">৳{b.price}</span>
-                            ) : (
-                              <span className="text-[9px] font-bold bg-green-50 text-green-600 border border-green-200 px-1.5 py-0.2 rounded font-sans-bengali">ফ্রি</span>
-                            )}
-                          </h5>
-                          <p className="text-[10px] text-brand-charcoal/50 font-sans-bengali mt-0.5">
-                            বিভাগ: {b.genre} • অধ্যায় সংখ্যা: {b.chapters.length}টি • দর্শক: {b.views}
-                          </p>
-                          
-                          <div className="flex items-center gap-1.5 mt-2">
-                            {b.featured && <span className="text-[9px] bg-brand-gold/30 text-brand-charcoal border border-brand-gold/40 px-2 py-0.5 rounded-full font-semibold font-sans-bengali">Featured</span>}
-                            {b.popular && <span className="text-[9px] bg-purple-50 text-purple-600 border border-purple-200 px-2 py-0.5 rounded-full font-semibold font-sans-bengali">Popular</span>}
-                          </div>
-                        </div>
+                  <BookOpen className="w-4 h-4" />
+                  বইয়ের তালিকা ({books.length})
+                </button>
+                <button
+                  onClick={() => { setActiveTab("create"); resetBookForm(); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer shrink-0 md:shrink ${
+                    activeTab === "create" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-create"
+                >
+                  <Plus className="w-4 h-4" />
+                  নতুন বই প্রকাশ
+                </button>
+
+                <div className="hidden md:block text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 py-1 mt-3">
+                  অ্যাপ্লিকেশন বিভাগ
+                </div>
+
+                <button
+                  onClick={() => { setActiveTab("apps"); resetAppForm(); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer shrink-0 md:shrink ${
+                    activeTab === "apps" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-apps"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  অ্যাপস তালিকা ({apps.length})
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab("create_app"); resetAppForm(); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer shrink-0 md:shrink ${
+                    activeTab === "create_app" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-create-app"
+                >
+                  <Upload className="w-4 h-4" />
+                  নতুন অ্যাপ আপলোড
+                </button>
+
+                <div className="hidden md:block text-[10px] font-bold uppercase tracking-wider text-neutral-400 px-3 py-1 mt-3">
+                  অন্যান্য
+                </div>
+
+                <button
+                  onClick={() => { setActiveTab("payments"); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer shrink-0 md:shrink ${
+                    activeTab === "payments" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-payments"
+                >
+                  <Award className="w-4 h-4" />
+                  পেমেন্ট রিকোয়েস্ট {paymentRequests.filter((r) => r.status === "pending").length > 0 && (
+                    <span className="bg-[#E2136E] text-white font-mono text-[9px] px-1.5 py-0.2 rounded-full font-bold ml-auto animate-pulse shrink-0">
+                      {paymentRequests.filter((r) => r.status === "pending").length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab("bio"); }}
+                  className={`w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 transition-all cursor-pointer shrink-0 md:shrink ${
+                    activeTab === "bio" ? "bg-brand-charcoal text-brand-gold shadow-md" : "text-neutral-600 hover:bg-white"
+                  }`}
+                  id="admin-tab-bio"
+                >
+                  <User className="w-4 h-4" />
+                  আপনার তথ্য
+                </button>
+
+                {(activeTab === "edit" || activeTab === "edit_app") && (
+                  <div className="w-full text-left py-2.5 px-4 rounded-xl text-xs font-semibold font-sans-bengali flex items-center gap-2 bg-brand-gold/25 border border-brand-gold text-brand-charcoal shrink-0 md:shrink">
+                    <Edit className="w-4 h-4 text-brand-gold-dark" />
+                    {activeTab === "edit" ? "বই সম্পাদনা" : "অ্যাপ সম্পাদনা"}
+                  </div>
+                )}
+              </aside>
+
+              {/* Central canvas */}
+              <main className="flex-1 overflow-y-auto p-5 md:p-8" id="admin-main-canvas">
+                <AnimatePresence mode="wait">
+                  {/* TAB: BOOKS LIST */}
+                  {activeTab === "list" && (
+                    <motion.div
+                      key="list"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                      id="admin-novel-list"
+                    >
+                      <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                        <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal">
+                          আপনার প্রকাশিত উপন্যাসসমূহ ({books.length})
+                        </h4>
+                        <button
+                          onClick={() => { setActiveTab("create"); resetBookForm(); }}
+                          className="text-xs font-bold bg-brand-charcoal text-brand-gold py-1.5 px-3.5 rounded-xl flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> নতুন বই
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-1 md:gap-2">
-                        <button
-                          onClick={() => handleEditTrigger(b)}
-                          className="p-2 rounded-xl text-brand-charcoal/60 hover:text-brand-charcoal hover:bg-neutral-500/10 transition-all border border-brand-gold/10 hover:border-brand-gold/30"
-                          title="সম্পাদনা করুন"
-                          id={`admin-edit-btn-${b.id}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            onDeleteBook(b.id);
-                          }}
-                          className="p-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all border border-red-100"
-                          title="ডিলিট করুন"
-                          id={`admin-delete-btn-${b.id}`}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              ) : activeTab === "payments" ? (
-                /* Payments verification history list */
-                <motion.div
-                  key="payments"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 font-sans-bengali text-left"
-                  id="admin-payments-list"
-                >
-                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">পেমেন্ট ভেরিফিকেশন ও বই ক্রয় রিকোয়েস্টসমূহ</h4>
-                  {paymentRequests.length === 0 ? (
-                    <div className="text-center py-16 bg-white border border-brand-gold/10 rounded-2xl flex flex-col items-center justify-center p-4">
-                      <Award className="w-12 h-12 text-brand-charcoal/20 mb-2.5 animate-pulse" />
-                      <p className="text-xs font-bold text-brand-charcoal/50">এখন পর্যন্ত কোনো পেমেন্ট রিকোয়েস্ট পাঠানো হয়নি।</p>
-                      <p className="text-[10px] text-brand-charcoal/40 mt-1">ব্যবহারকারীরা বিকাশ ফর্মে পেমেন্ট ভেরিফাই করলে এখানে নোটিফিকেশন আসবে।</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {paymentRequests.map((req: any) => (
-                        <div key={req.id} className="bg-white border border-brand-gold/15 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-3xs hover:shadow-2xs transition-shadow">
-                          <div className="space-y-1 md:max-w-xl">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-serif-bengali font-extrabold text-sm text-brand-charcoal">{req.name}</span>
-                              <span className="text-[10px] bg-brand-charcoal/5 border border-brand-charcoal/10 text-brand-charcoal/60 px-1.5 py-0.2 rounded font-mono font-bold select-all">{req.userEmail}</span>
-                              <span className="text-[9px] bg-stone-100 text-stone-500 font-sans px-1.5 py-0.2 rounded font-bold">{req.timestamp}</span>
+                      {books.map((b) => (
+                        <div key={b.id} className="bg-white border border-black/[0.06] rounded-2xl p-4 flex items-center justify-between shadow-2xs hover:shadow-sm transition-all">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-16 rounded-xl overflow-hidden aspect-[3/4] shadow bg-brand-charcoal shrink-0 flex items-center justify-center">
+                              {b.coverUrl && (b.coverUrl.startsWith("http") || b.coverUrl.startsWith("data:image") || (b.coverUrl.includes(".") && !b.coverUrl.includes("<svg"))) ? (
+                                <img src={b.coverUrl} className="w-full h-full object-cover" alt={b.title} referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full object-cover flex items-center justify-center" dangerouslySetInnerHTML={{ __html: b.coverUrl }} />
+                              )}
                             </div>
-                            <div className="text-[11px] font-sans-bengali text-brand-charcoal/70 flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span>মোবাইল: <strong className="font-mono text-[10px] text-brand-charcoal">{req.phone}</strong></span>
-                              <span>আইটেম: <strong className="text-brand-gold-dark font-sans-bengali">{req.itemName}</strong></span>
-                              <span>মূল্য: <strong className="text-[#E2136E] font-bold">৳{req.amount}</strong></span>
-                            </div>
-                            <div className="pt-1.5 flex items-center gap-2">
-                              <span className="text-[9px] font-bold text-brand-charcoal/50">বিকাশ TrxID:</span>
-                              <span className="text-[10px] bg-[#E2136E]/10 text-[#E2136E] border border-[#E2136E]/20 px-2 py-0.5 rounded font-mono font-black uppercase tracking-wider select-all">
-                                {req.trxId}
-                              </span>
+                            <div>
+                              <h5 className="font-bold text-sm md:text-base font-serif-bengali text-brand-charcoal flex items-center gap-2">
+                                {b.title}
+                                {b.isPremium ? (
+                                  <span className="text-[9px] font-bold bg-brand-charcoal text-brand-gold px-1.5 py-0.2 rounded font-sans-bengali">৳{b.price}</span>
+                                ) : (
+                                  <span className="text-[9px] font-bold bg-green-50 text-green-600 border border-green-200 px-1.5 py-0.2 rounded font-sans-bengali">ফ্রি</span>
+                                )}
+                              </h5>
+                              <p className="text-[10px] text-neutral-500 font-sans-bengali mt-0.5">
+                                বিভাগ: {b.genre} • অধ্যায় সংখ্যা: {b.chapters.length}টি • দর্শক: {b.views}
+                              </p>
+                              
+                              <div className="flex items-center gap-1.5 mt-2">
+                                {b.featured && <span className="text-[9px] bg-brand-gold/30 text-brand-charcoal px-2 py-0.5 rounded-full font-semibold font-sans-bengali">Featured</span>}
+                                {b.popular && <span className="text-[9px] bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-semibold font-sans-bengali">Popular</span>}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 justify-end shrink-0 pt-2 md:pt-0">
-                            {req.status === "pending" ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => onRejectRequest(req.id)}
-                                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 hover:border-red-300 font-bold text-[10px] py-1.5 px-3 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                                  title="প্রত্যাখ্যান করুন"
-                                  id={`btn-reject-${req.id}`}
-                                >
-                                  reject (প্রত্যাখ্যান)
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onApproveRequest(req.id)}
-                                  className="bg-green-500 hover:bg-green-600 text-white font-bold text-[10px] py-1.5 px-3.5 rounded-lg shadow-xs transition-all flex items-center gap-1 hover:scale-102 active:scale-98 cursor-pointer"
-                                  title="অনুমোদন করুন"
-                                  id={`btn-approve-${req.id}`}
-                                >
-                                  approve (অনুমোদন)
-                                </button>
-                              </>
-                            ) : (
-                              <span className={`text-[9px] font-bold font-sans px-2.5 py-1 rounded-full border ${
-                                req.status === "approved" 
-                                  ? "bg-green-50 border-green-200 text-green-600" 
-                                  : "bg-red-50 border-red-200 text-red-600"
-                              }`}>
-                                {req.status === "approved" ? "✅ APPROVED (অনুমোদিত)" : "❌ REJECTED (প্রত্যাখ্যাত)"}
-                              </span>
-                            )}
+                          <div className="flex items-center gap-1 md:gap-2">
+                            <button
+                              onClick={() => handleEditBookTrigger(b)}
+                              className="p-2 rounded-xl text-neutral-600 hover:text-brand-charcoal hover:bg-neutral-100 transition-all cursor-pointer"
+                              title="সম্পাদনা করুন"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => onDeleteBook(b.id)}
+                              className="p-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all cursor-pointer"
+                              title="ডিলিট করুন"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </motion.div>
-              ) : activeTab === "bio" ? (
-                <motion.div
-                  key="bio"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-6"
-                  id="admin-bio-editor"
-                >
-                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">লেখকের পরিচিতি (Bio) আপডেট</h4>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">আপনার সম্পর্কে যা লেখা দেখাবে:</label>
-                    <textarea
-                      rows={6}
-                      value={tempBio}
-                      onChange={(e) => setTempBio(e.target.value)}
-                      className="w-full bg-white border border-brand-gold/15 rounded-xl py-3 px-4 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-gold resize-none"
-                    />
-                  </div>
-                  <button
-                    onClick={() => onUpdateAuthorBio(tempBio)}
-                    className="w-full bg-brand-charcoal text-brand-gold px-4 py-3 rounded-xl text-xs font-bold font-sans-bengali shadow-md hover:bg-brand-charcoal/90 transition-all flex items-center justify-center gap-1.5 border border-brand-gold/20"
-                  >
-                    তথ্য আপডেট করুন
-                  </button>
-                </motion.div>
-              ) : (
-                /* Creating/Editing unified workspace form */
-                <motion.form
-                  key="form"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onSubmit={handleSubmit}
-                  className="space-y-6"
-                  id="admin-editor-form"
-                >
-                  <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-brand-gold/15 pb-2">
-                    {activeTab === "create" ? "নতুন সাহিত্য প্রকাশ করুন" : `"${title}" সম্পাদনালয়`}
-                  </h4>
-                  
-                  {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-semibold font-sans-bengali">
-                      {formError}
-                    </div>
+                    </motion.div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">উপন্যাসের নাম (বাংলায়):</label>
-                        {title && (
+                  {/* TAB: APPS LIST */}
+                  {activeTab === "apps" && (
+                    <motion.div
+                      key="apps"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4"
+                      id="admin-apps-list"
+                    >
+                      <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                        <div>
+                          <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal">
+                            আপলোডকৃত অ্যাপ্লিকেশন সম্ভার ({apps.length})
+                          </h4>
+                          <p className="text-[11px] text-neutral-500 font-sans-bengali">
+                            এখান থেকে আপনি যেকোনো অ্যাপ (APK/সফটওয়্যার) আপলোড করতে পারবেন এবং ভিজিটররা সরাসরি ডাউনলোড করতে পারবে।
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => { setActiveTab("create_app"); resetAppForm(); }}
+                          className="text-xs font-bold bg-brand-charcoal text-brand-gold py-2 px-4 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                        >
+                          <Upload className="w-3.5 h-3.5" /> নতুন অ্যাপ আপলোড
+                        </button>
+                      </div>
+
+                      {apps.length === 0 ? (
+                        <div className="text-center py-16 bg-white border border-black/[0.06] rounded-3xl flex flex-col items-center justify-center p-6 space-y-3">
+                          <Smartphone className="w-12 h-12 text-neutral-300" />
+                          <h5 className="text-sm font-bold text-brand-charcoal">কোনো অ্যাপ আপলোড করা হয়নি</h5>
+                          <p className="text-xs text-neutral-500 max-w-sm">
+                            আপনি এখন "নতুন অ্যাপ আপলোড" বাটনে ক্লিক করে অ্যান্ড্রয়েড APK বা যেকোনো অ্যাপ ফাইল আপলোড করতে পারেন।
+                          </p>
                           <button
-                            type="button"
-                            onClick={() => setTitle(fixBijoyText(title))}
-                            className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
-                            title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
+                            onClick={() => { setActiveTab("create_app"); resetAppForm(); }}
+                            className="bg-brand-charcoal text-brand-gold text-xs font-bold py-2.5 px-5 rounded-2xl cursor-pointer"
                           >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            বিজয় ঠিক করুন 🪄
+                            প্রথম অ্যাপ আপলোড করুন
                           </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {apps.map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-black/[0.06] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs hover:shadow-sm transition-all"
+                            >
+                              <div className="flex items-center space-x-4">
+                                <div className="w-14 h-14 rounded-2xl overflow-hidden bg-brand-charcoal/5 shrink-0 flex items-center justify-center shadow-xs">
+                                  {app.iconUrl && (app.iconUrl.startsWith("http") || app.iconUrl.startsWith("/uploads") || app.iconUrl.startsWith("data:image")) ? (
+                                    <img src={app.iconUrl} alt={app.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <Smartphone className="w-7 h-7 text-brand-charcoal" />
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h5 className="font-bold text-sm font-serif-bengali text-brand-charcoal">
+                                      {app.name}
+                                    </h5>
+                                    <span className="text-[10px] font-bold bg-brand-gold/20 text-brand-charcoal px-2 py-0.5 rounded-full">
+                                      {app.version}
+                                    </span>
+                                    <span className="text-[10px] bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full">
+                                      {app.category}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-neutral-500 font-sans-bengali flex items-center gap-3">
+                                    <span>সাইজ: {app.size}</span>
+                                    <span>•</span>
+                                    <span>প্ল্যাটফর্ম: {app.platform}</span>
+                                    <span>•</span>
+                                    <span>{app.downloadsCount} বার ডাউনলোড</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0 justify-end">
+                                <a
+                                  href={app.downloadUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="p-2 rounded-xl text-neutral-600 hover:text-brand-charcoal hover:bg-neutral-100 transition-all flex items-center gap-1 text-xs font-bold"
+                                  title="ডাউনলোড টেস্ট করুন"
+                                >
+                                  <Download className="w-4 h-4 text-brand-gold" />
+                                  টেস্ট
+                                </a>
+                                <button
+                                  onClick={() => handleEditAppTrigger(app)}
+                                  className="p-2 rounded-xl text-neutral-600 hover:text-brand-charcoal hover:bg-neutral-100 transition-all cursor-pointer"
+                                  title="সম্পাদনা করুন"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => onDeleteApp(app.id)}
+                                  className="p-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-all cursor-pointer"
+                                  title="ডিলিট করুন"
+                                >
+                                  <Trash className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* TAB: CREATE OR EDIT APP */}
+                  {(activeTab === "create_app" || activeTab === "edit_app") && (
+                    <motion.form
+                      key="app-form"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onSubmit={handleSubmitApp}
+                      className="space-y-6"
+                    >
+                      <div className="flex items-center justify-between border-b border-black/[0.06] pb-3">
+                        <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal flex items-center gap-2">
+                          <Smartphone className="w-4 h-4 text-brand-gold" />
+                          {activeTab === "create_app" ? "নতুন অ্যাপ আপলোড করুন" : `"${appName}" সম্পাদনা করুন`}
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => { resetAppForm(); setActiveTab("apps"); }}
+                          className="text-xs text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                        >
+                          ফিরে যান
+                        </button>
+                      </div>
+
+                      {formError && (
+                        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-2xl text-xs font-semibold font-sans-bengali flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          {formError}
+                        </div>
+                      )}
+
+                      {/* File Upload Box */}
+                      <div className="bg-white border-2 border-dashed border-neutral-300 hover:border-brand-charcoal p-6 rounded-3xl text-center space-y-3 transition-colors">
+                        <div className="w-12 h-12 rounded-2xl bg-neutral-100 text-brand-charcoal flex items-center justify-center mx-auto">
+                          <Upload className="w-6 h-6 text-brand-charcoal" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-brand-charcoal font-serif-bengali">
+                            আপনার মোবাইল অ্যাপ (APK) অথবা সফটওয়্যার ফাইল এখানে আপলোড করুন
+                          </p>
+                          <p className="text-[11px] text-neutral-400 font-sans-bengali mt-0.5">
+                            .apk, .xapk, .zip বা যেকোনো ফাইল সরাসরি সিলেক্ট করুন
+                          </p>
+                        </div>
+
+                        <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-3">
+                          <label className="bg-brand-charcoal hover:bg-black text-brand-gold text-xs font-bold py-2.5 px-5 rounded-2xl cursor-pointer transition-all flex items-center gap-2 shadow-xs">
+                            <Upload className="w-4 h-4" />
+                            {isUploadingFile ? "আপলোড হচ্ছে..." : "ফাইল বেছে নিন (Choose File)"}
+                            <input
+                              type="file"
+                              accept=".apk,.xapk,.zip,.exe,.pdf,*/*"
+                              onChange={handleAppFileUpload}
+                              disabled={isUploadingFile}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+
+                        {uploadStatusMsg && (
+                          <div className="text-xs font-sans-bengali font-semibold text-neutral-700 bg-neutral-50 p-2 rounded-xl max-w-md mx-auto">
+                            {uploadStatusMsg}
+                          </div>
                         )}
                       </div>
-                      <input
-                        type="text"
-                        required
-                        placeholder="যেমন: মন কেমনের জলসাঘর"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-gold"
-                        id="form-title-bn"
-                      />
-                    </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">উপন্যাসের নাম (ইংরেজিতে):</label>
-                      <input
-                        type="text"
-                        placeholder="যেমন: Mon Kemoner Jolsaghor"
-                        value={titleEn}
-                        onChange={(e) => setTitleEn(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
-                        id="form-title-en"
-                      />
-                    </div>
+                      {/* Manual Download URL fallback */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            ডাউনলোড লিঙ্ক (Download URL):
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="যেমন: /uploads/app.apk অথবা ড্রাইভ লিংক"
+                            value={appDownloadUrl}
+                            onChange={(e) => setAppDownloadUrl(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বিভাগ বা জনরা:</label>
-                      <select
-                        value={genre}
-                        onChange={(e) => setGenre(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-gold"
-                        id="form-genre"
-                      >
-                        <option value="ম্যাজিকাল রিয়ালিজম">ম্যাজিকাল রিয়ালিজম (Magical Realism)</option>
-                        <option value="রহস্য ও থ্রিলার">রহস্য ও থ্রিলার (Mystery / Thriller)</option>
-                        <option value="ধ্রুপদী উপন্যাস">ধ্রুপদী উপন্যাস (Classical Novel)</option>
-                        <option value="মনস্তাত্ত্বিক উপন্যাস">মনস্তাত্ত্বিক উপন্যাস (Psychological Novel)</option>
-                        <option value="রোমান্টিক সামাজিক">রোমান্টিক সামাজিক (Romantic Drama)</option>
-                      </select>
-                    </div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            অ্যাপের নাম:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="যেমন: গল্পবাড়ি রিডার অ্যাপ"
+                            value={appName}
+                            onChange={(e) => setAppName(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal font-serif-bengali"
+                          />
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">আনুমানিক পড়ার সময়:</label>
-                      <input
-                        type="text"
-                        placeholder="যেমন: ৩ ঘণ্টা"
-                        value={readTime}
-                        onChange={(e) => setReadTime(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-gold"
-                        id="form-read-time"
-                      />
-                    </div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            ক্যাটাগরি / বিভাগ:
+                          </label>
+                          <select
+                            value={appCategory}
+                            onChange={(e) => setAppCategory(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal"
+                          >
+                            <option value="অ্যান্ড্রয়েড অ্যাপ (APK)">অ্যান্ড্রয়েড অ্যাপ (APK)</option>
+                            <option value="ই-রিডার (eReader)">ই-রিডার (eReader)</option>
+                            <option value="ইউটিলিটি ও টুলস">ইউটিলিটি ও টুলস</option>
+                            <option value="অডিওবুক ও মিডিয়া">অডিওবুক ও মিডিয়া</option>
+                            <option value="উইন্ডোজ সফটওয়্যার">উইন্ডোজ সফটওয়্যার</option>
+                          </select>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বইয়ের কভার ছবির URL (ঐচ্ছিক):</label>
-                      <input
-                        type="url"
-                        placeholder="যেমন: https://example.com/cover.jpg"
-                        value={customCoverUrl}
-                        onChange={(e) => setCustomCoverUrl(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
-                        id="form-cover-url"
-                      />
-                    </div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            প্ল্যাটফর্ম:
+                          </label>
+                          <select
+                            value={appPlatform}
+                            onChange={(e) => setAppPlatform(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal"
+                          >
+                            <option value="Android">Android (অ্যান্ড্রয়েড)</option>
+                            <option value="Windows">Windows (কম্পিউটার)</option>
+                            <option value="Web">Web App (ওয়েব)</option>
+                            <option value="Cross-Platform">Cross-Platform (উভয়)</option>
+                          </select>
+                        </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বইয়ের PDF ড্রাইভ লিংক (ঐচ্ছিক):</label>
-                      <input
-                        type="url"
-                        placeholder="যেমন: https://drive.google.com/..."
-                        value={pdfUrl}
-                        onChange={(e) => setPdfUrl(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
-                        id="form-pdf-url"
-                      />
-                    </div>
-                  </div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            ভার্সন (Version):
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: v1.0.0"
+                            value={appVersion}
+                            onChange={(e) => setAppVersion(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-brand-gold/10 pt-4">
-                    <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-brand-gold/10">
-                      <input
-                        type="checkbox"
-                        checked={isPremium}
-                        onChange={(e) => setIsPremium(e.target.checked)}
-                        className="w-4 h-4 text-brand-gold border-brand-gold/30 rounded focus:ring-brand-gold"
-                        id="form-is-premium"
-                      />
-                      <label htmlFor="form-is-premium" className="text-xs font-bold text-brand-charcoal/70 font-sans-bengali cursor-pointer select-none">
-                        প্রিমিয়াম উপন্যাস (Paid)
-                      </label>
-                    </div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            ফাইল সাইজ (Size):
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: 18.5 MB"
+                            value={appSize}
+                            onChange={(e) => setAppSize(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+                      </div>
 
-                    {isPremium && (
-                      <div className="animate-fade-in">
-                        <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">বইয়ের মূল্য (টাকা ৳):</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={price}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                          className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
-                          id="form-price"
+                      {/* Icon Section */}
+                      <div className="bg-white p-5 rounded-3xl border border-neutral-200 space-y-3">
+                        <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">
+                          অ্যাপের আইকন / লোগো (Icon):
+                        </label>
+                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center shrink-0">
+                            {appIconUrl ? (
+                              <img src={appIconUrl} alt="App icon preview" className="w-full h-full object-cover" />
+                            ) : (
+                              <Smartphone className="w-8 h-8 text-neutral-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 w-full space-y-2">
+                            <input
+                              type="text"
+                              placeholder="লোগোর অনলাইন লিঙ্ক (URL) দিন..."
+                              value={appIconUrl}
+                              onChange={(e) => setAppIconUrl(e.target.value)}
+                              className="w-full bg-white border border-neutral-200 rounded-xl py-2 px-3 text-xs text-neutral-900 focus:outline-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <label className="text-[11px] font-bold bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-1.5 px-3 rounded-lg cursor-pointer transition-all">
+                                {isUploadingIcon ? "আপলোড হচ্ছে..." : "ডিভাইস থেকে আইকন ছবি আপলোড"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleAppIconUpload}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description & Features */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            সংক্ষিপ্ত বিবরণ (Description):
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={appDescription}
+                            onChange={(e) => setAppDescription(e.target.value)}
+                            placeholder="অ্যাপটি সম্পর্কে সংক্ষিপ্ত বিবরণ লিখুন..."
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal resize-none font-sans-bengali leading-relaxed"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">
+                            অ্যাপের প্রধান সুবিধাসমূহ (Features - প্রতি লাইনে একটি):
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={appFeaturesText}
+                            onChange={(e) => setAppFeaturesText(e.target.value)}
+                            placeholder="অফলাইনে উপন্যাস পড়ার সুবিধা&#10;ডার্ক মোড সুবিধা&#10;বিজ্ঞাপনহীন"
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2.5 px-3.5 text-xs text-neutral-900 focus:outline-none focus:border-brand-charcoal resize-none font-sans-bengali leading-relaxed"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Submit App Buttons */}
+                      <div className="flex items-center gap-3 pt-4 border-t border-black/[0.06]">
+                        <button
+                          type="submit"
+                          disabled={isUploadingFile}
+                          className="flex-1 bg-brand-charcoal text-brand-gold hover:bg-black py-3.5 rounded-2xl text-xs font-bold font-sans-bengali flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4 text-brand-gold" />
+                          {activeTab === "create_app" ? "অ্যাপ আপলোড ও প্রকাশ করুন" : "পরিবর্তন সংরক্ষণ করুন"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { resetAppForm(); setActiveTab("apps"); }}
+                          className="px-6 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-2xl font-sans-bengali transition-colors cursor-pointer"
+                        >
+                          বাতিল
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+
+                  {/* TAB: PAYMENTS */}
+                  {activeTab === "payments" && (
+                    <motion.div
+                      key="payments"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-4 font-sans-bengali text-left"
+                      id="admin-payments-list"
+                    >
+                      <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-black/[0.06] pb-2">পেমেন্ট ভেরিফিকেশন ও বই ক্রয় রিকোয়েস্টসমূহ</h4>
+                      {paymentRequests.length === 0 ? (
+                        <div className="text-center py-16 bg-white border border-black/[0.06] rounded-2xl flex flex-col items-center justify-center p-4">
+                          <Award className="w-12 h-12 text-neutral-300 mb-2.5" />
+                          <p className="text-xs font-bold text-neutral-500">এখন পর্যন্ত কোনো পেমেন্ট রিকোয়েস্ট পাঠানো হয়নি।</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {paymentRequests.map((req: any) => (
+                            <div key={req.id} className="bg-white border border-black/[0.06] rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+                              <div className="space-y-1 md:max-w-xl">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-serif-bengali font-extrabold text-sm text-brand-charcoal">{req.name}</span>
+                                  <span className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.2 rounded font-mono font-bold">{req.userEmail}</span>
+                                </div>
+                                <div className="text-[11px] font-sans-bengali text-neutral-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                  <span>মোবাইল: <strong className="font-mono text-[10px] text-brand-charcoal">{req.phone}</strong></span>
+                                  <span>আইটেম: <strong className="text-brand-charcoal font-sans-bengali">{req.itemName}</strong></span>
+                                  <span>মূল্য: <strong className="text-[#E2136E] font-bold">৳{req.amount}</strong></span>
+                                </div>
+                                <div className="pt-1.5 flex items-center gap-2">
+                                  <span className="text-[9px] font-bold text-neutral-400">বিকাশ TrxID:</span>
+                                  <span className="text-[10px] bg-[#E2136E]/10 text-[#E2136E] px-2 py-0.5 rounded font-mono font-black uppercase">
+                                    {req.trxId}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 justify-end shrink-0 pt-2 md:pt-0">
+                                {req.status === "pending" ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => onRejectRequest(req.id)}
+                                      className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[10px] py-1.5 px-3 rounded-lg cursor-pointer"
+                                    >
+                                      reject
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => onApproveRequest(req.id)}
+                                      className="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] py-1.5 px-3.5 rounded-lg cursor-pointer shadow-xs"
+                                    >
+                                      approve
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className={`text-[9px] font-bold font-sans px-2.5 py-1 rounded-full ${
+                                    req.status === "approved" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                                  }`}>
+                                    {req.status === "approved" ? "APPROVED" : "REJECTED"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {/* TAB: BIO */}
+                  {activeTab === "bio" && (
+                    <motion.div
+                      key="bio"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="space-y-6"
+                      id="admin-bio-editor"
+                    >
+                      <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-black/[0.06] pb-2">লেখকের পরিচিতি (Bio) আপডেট</h4>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">আপনার সম্পর্কে যা লেখা দেখাবে:</label>
+                        <textarea
+                          rows={6}
+                          value={tempBio}
+                          onChange={(e) => setTempBio(e.target.value)}
+                          className="w-full bg-white border border-neutral-200 rounded-2xl py-3 px-4 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-charcoal resize-none leading-relaxed"
                         />
                       </div>
-                    )}
+                      <button
+                        onClick={() => onUpdateAuthorBio(tempBio)}
+                        className="w-full bg-brand-charcoal text-brand-gold px-4 py-3.5 rounded-2xl text-xs font-bold font-sans-bengali shadow-md hover:bg-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        তথ্য আপডেট করুন
+                      </button>
+                    </motion.div>
+                  )}
 
-                    <div>
-                      <label className="block text-xs font-bold text-brand-charcoal/70 mb-1.5 font-sans-bengali">মোট পৃষ্ঠা সংখ্যা:</label>
-                      <input
-                        type="number"
-                        min="10"
-                        value={pages}
-                        onChange={(e) => setPages(Number(e.target.value))}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-gold"
-                        id="form-pages"
-                      />
-                    </div>
-                  </div>
+                  {/* TAB: CREATE OR EDIT BOOK */}
+                  {(activeTab === "create" || activeTab === "edit") && (
+                    <motion.form
+                      key="form"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onSubmit={handleSubmitBook}
+                      className="space-y-6"
+                      id="admin-editor-form"
+                    >
+                      <h4 className="text-sm font-bold font-serif-bengali text-brand-charcoal border-b border-black/[0.06] pb-2">
+                        {activeTab === "create" ? "নতুন সাহিত্য প্রকাশ করুন" : `"${title}" সম্পাদনালয়`}
+                      </h4>
+                      
+                      {formError && (
+                        <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-semibold font-sans-bengali">
+                          {formError}
+                        </div>
+                      )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-brand-gold/10 pt-4">
-                    <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-brand-gold/10">
-                      <input
-                        type="checkbox"
-                        checked={featured}
-                        disabled={!featured && books.some(b => b.featured && b.id !== editingBookId)}
-                        onChange={(e) => setFeatured(e.target.checked)}
-                        className="w-4 h-4 text-brand-gold border-brand-gold/30 rounded focus:ring-brand-gold disabled:opacity-50"
-                        id="form-featured"
-                      />
-                      <label htmlFor="form-featured" className={`text-xs font-bold font-sans-bengali cursor-pointer select-none ${(!featured && books.some(b => b.featured && b.id !== editingBookId)) ? "text-brand-charcoal/30" : "text-brand-charcoal/70"}`}>
-                        হোম পেজে ফিচার্ড স্লাইডারে রাখুন
-                        {(!featured && books.some(b => b.featured && b.id !== editingBookId)) && " (অন্য একটি বই ফিচার্ড আছে)"}
-                      </label>
-                    </div>
-
-                    <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-brand-gold/10">
-                      <input
-                        type="checkbox"
-                        checked={popular}
-                        onChange={(e) => setPopular(e.target.checked)}
-                        className="w-4 h-4 text-brand-gold border-brand-gold/30 rounded focus:ring-brand-gold"
-                        id="form-popular"
-                      />
-                      <label htmlFor="form-popular" className="text-xs font-bold text-brand-charcoal/70 font-sans-bengali cursor-pointer select-none">
-                        জনপ্রিয় তালিকায় যোগ করুন
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 border-t border-brand-gold/10 pt-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">সংক্ষিপ্ত কভার মকআপ বিবরণ (Emotional Line):</label>
-                        {shortDesc && (
-                          <button
-                            type="button"
-                            onClick={() => setShortDesc(fixBijoyText(shortDesc))}
-                            className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
-                            title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
-                          >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            বিজয় ঠিক করুন 🪄
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        placeholder="যেমন: এক জাদুকরী বৃষ্টির দুপুরে অপরাজিতার এক অজানা রেশমি রহস্য..."
-                        value={shortDesc}
-                        onChange={(e) => setShortDesc(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-gold"
-                        id="form-short-desc"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <label className="block text-xs font-bold text-brand-charcoal/70 font-sans-bengali">মূল সিনোপসিস বা দীর্ঘ গদ্য বিবরণ:</label>
-                        {longDesc && (
-                          <button
-                            type="button"
-                            onClick={() => setLongDesc(fixBijoyText(longDesc))}
-                            className="text-[10px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
-                            title="বিজয় কীবোর্ডের এলোমেলো লেখা ঠিক করুন"
-                          >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            বিজয় ঠিক করুন 🪄
-                          </button>
-                        )}
-                      </div>
-                      <textarea
-                        rows={4}
-                        placeholder="এখানে সমস্ত সিনোপসিস লিখুন বা কপি করে বসিয়ে দিন..."
-                        value={longDesc}
-                        onChange={(e) => setLongDesc(e.target.value)}
-                        className="w-full bg-white border border-brand-gold/15 rounded-xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-gold resize-none"
-                        id="form-long-desc"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Chapters Builder Sections */}
-                  <div className="space-y-4 border-t border-brand-gold/15 pt-6 bg-white p-4 rounded-2xl border border-brand-gold/10">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <h5 className="font-bold text-xs uppercase text-brand-gold tracking-widest flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        অধ্যায়সমূহ ও রচনা সংস্করণ
-                      </h5>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setChapters(chapters.map(ch => ({
-                              ...ch,
-                              title: fixBijoyText(ch.title),
-                              content: fixBijoyText(ch.content)
-                            })));
-                          }}
-                          className="bg-amber-100/80 hover:bg-amber-100 text-amber-950 border border-brand-gold/25 px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans-bengali flex items-center gap-1 transition-all cursor-pointer shadow-xs"
-                          title="সব অধ্যায়ের বিজয় কীবোর্ডের এলোমেলো লেখা একসাথে ঠিক করুন"
-                        >
-                          <Sparkles className="w-2.5 h-2.5 text-amber-800 animate-bounce" />
-                          সব লেখা ঠিক করুন 🪄
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleAddChapter}
-                          className="bg-brand-charcoal hover:bg-brand-charcoal/80 text-brand-gold px-3 py-1.5 rounded-xl text-[10px] font-bold font-sans-bengali flex items-center gap-1 transition-all cursor-pointer"
-                          id="add-chapter-form-btn"
-                        >
-                          <Plus className="w-3 h-3" />
-                          নতুন অধ্যায় বানান
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      {chapters.map((ch, idx) => (
-                        <div key={ch.id} className="border border-brand-gold/10 p-3 rounded-xl bg-brand-beige/50 space-y-3 relative">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-mono font-bold text-brand-gold">অধ্যায় - {idx + 1}</span>
-                            {chapters.length > 1 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">উপন্যাসের নাম (বাংলায়):</label>
+                            {title && (
                               <button
                                 type="button"
-                                onClick={() => handleRemoveChapter(ch.id)}
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                id={`remove-chapter-${ch.id}`}
+                                onClick={() => setTitle(fixBijoyText(title))}
+                                className="text-[10px] text-brand-gold hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
                               >
-                                <Trash className="w-3.5 h-3.5" />
+                                <Sparkles className="w-2.5 h-2.5" /> বিজয় ঠিক করুন 🪄
                               </button>
                             )}
                           </div>
-
-                          <div>
-                            <div className="flex justify-between items-center mb-1">
-                              <label className="block text-[10px] font-bold text-brand-charcoal/60 font-sans-bengali">অধ্যায়ের নাম (বাংলায়):</label>
-                              {ch.title && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleChapterTitleChange(ch.id, fixBijoyText(ch.title))}
-                                  className="text-[9px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
-                                  title="এই অধ্যায়ের শিরোনামের বিজয় টাইপিং ঠিক করুন"
-                                >
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                  বিজয় ঠিক করুন 🪄
-                                </button>
-                              )}
-                            </div>
-                            <input
-                              type="text"
-                              value={ch.title}
-                              onChange={(e) => handleChapterTitleChange(ch.id, e.target.value)}
-                              placeholder="যেমন: ১. ঝড়ের প্রথম স্পর্শ"
-                              className="w-full bg-white border border-brand-gold/10 rounded-lg py-1.5 px-3.5 text-xs font-bold font-serif-bengali text-brand-charcoal focus:outline-none"
-                              id={`chapter-title-input-${ch.id}`}
-                            />
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between items-center mb-1">
-                              <label className="block text-[10px] font-bold text-brand-charcoal/60 font-sans-bengali">অধ্যায়ের মূল গল্প (বাংলায়):</label>
-                              {ch.content && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleChapterContentChange(ch.id, fixBijoyText(ch.content))}
-                                  className="text-[9px] text-brand-gold-dark hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
-                                  title="এই অধ্যায়ের রচনার বিজয় টাইপিং ঠিক করুন"
-                                >
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                  বিজয় ঠিক করুন 🪄
-                                </button>
-                              )}
-                            </div>
-                            <textarea
-                              rows={12}
-                              value={ch.content}
-                              onChange={(e) => handleChapterContentChange(ch.id, e.target.value)}
-                              placeholder="এই অধ্যায়ের মূল গল্প লিখুন..."
-                              className="w-full bg-white border border-brand-gold/10 rounded-lg py-3 px-3.5 text-xs font-serif-bengali text-brand-charcoal focus:outline-none leading-relaxed min-h-[250px]"
-                              id={`chapter-content-input-${ch.id}`}
-                            />
-                          </div>
+                          <input
+                            type="text"
+                            required
+                            placeholder="যেমন: মেঘবালিকার ডায়েরি"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-charcoal"
+                          />
                         </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Finish publish controllers */}
-                  <div className="flex items-center gap-3 pt-4 border-t border-brand-gold/15">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-brand-charcoal text-brand-gold hover:bg-brand-charcoal/95 border border-brand-gold/40 py-3 rounded-xl text-xs font-bold font-sans-bengali flex items-center justify-center gap-2 transition-all shadow-md"
-                      id="submit-book-btn"
-                    >
-                      <Check className="w-4 h-4 text-brand-gold" />
-                      {activeTab === "create" ? "সাহিত্য সংকলন উম্মোচন করুন" : "পরিপত্র সেভ করুন"}
-                    </button>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">উপন্যাসের নাম (ইংরেজিতে):</label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: Meghbalikar Diary"
+                            value={titleEn}
+                            onChange={(e) => setTitleEn(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetForm();
-                        setActiveTab("list");
-                      }}
-                      className="px-5 py-3 border border-brand-gold/10 hover:bg-brand-gold/10 hover:text-brand-charcoal font-semibold text-xs rounded-xl text-brand-charcoal/60 font-sans-bengali transition-colors"
-                      id="cancel-book-btn"
-                    >
-                      বাতিল
-                    </button>
-                  </div>
-                </motion.form>
-              )}
-            </AnimatePresence>
-          </main>
-        </div>
-      </motion.div>
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">বিভাগ বা জনরা:</label>
+                          <select
+                            value={genre}
+                            onChange={(e) => setGenre(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-charcoal"
+                          >
+                            <option value="ম্যাজিকাল রিয়ালিজম">ম্যাজিকাল রিয়ালিজম (Magical Realism)</option>
+                            <option value="রহস্য ও থ্রিলার">রহস্য ও থ্রিলার (Mystery / Thriller)</option>
+                            <option value="ধ্রুপদী উপন্যাস">ধ্রুপদী উপন্যাস (Classical Novel)</option>
+                            <option value="মনস্তাত্ত্বিক উপন্যাস">মনস্তাত্ত্বিক উপন্যাস (Psychological Novel)</option>
+                            <option value="রোমান্টিক সামাজিক">রোমান্টিক সামাজিক (Romantic Drama)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">আনুমানিক পড়ার সময়:</label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: ৩ ঘণ্টা"
+                            value={readTime}
+                            onChange={(e) => setReadTime(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans-bengali focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">বইয়ের কভার ছবির URL (ঐচ্ছিক):</label>
+                          <input
+                            type="url"
+                            placeholder="যেমন: https://example.com/cover.jpg"
+                            value={customCoverUrl}
+                            onChange={(e) => setCustomCoverUrl(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">বইয়ের PDF ড্রাইভ লিংক (ঐচ্ছিক):</label>
+                          <input
+                            type="url"
+                            placeholder="যেমন: https://drive.google.com/..."
+                            value={pdfUrl}
+                            onChange={(e) => setPdfUrl(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-black/[0.06] pt-4">
+                        <div className="flex items-center space-x-3 bg-white p-3 rounded-2xl border border-neutral-200">
+                          <input
+                            type="checkbox"
+                            checked={isPremium}
+                            onChange={(e) => setIsPremium(e.target.checked)}
+                            className="w-4 h-4 text-brand-charcoal rounded cursor-pointer"
+                            id="form-is-premium"
+                          />
+                          <label htmlFor="form-is-premium" className="text-xs font-bold text-neutral-700 font-sans-bengali cursor-pointer select-none">
+                            প্রিমিয়াম উপন্যাস (Paid)
+                          </label>
+                        </div>
+
+                        {isPremium && (
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">বইয়ের মূল্য (টাকা ৳):</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={price}
+                              onChange={(e) => setPrice(Number(e.target.value))}
+                              className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-charcoal"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-xs font-bold text-neutral-700 mb-1.5 font-sans-bengali">মোট পৃষ্ঠা সংখ্যা:</label>
+                          <input
+                            type="number"
+                            min="10"
+                            value={pages}
+                            onChange={(e) => setPages(Number(e.target.value))}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-sans focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 border-t border-black/[0.06] pt-4">
+                        <div>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">সংক্ষিপ্ত কভার বিবরণ:</label>
+                            {shortDesc && (
+                              <button
+                                type="button"
+                                onClick={() => setShortDesc(fixBijoyText(shortDesc))}
+                                className="text-[10px] text-brand-gold hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" /> বিজয় ঠিক করুন 🪄
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            required
+                            placeholder="যেমন: এক বৃষ্টির দুপুরে কুয়াশায় ঢাকা..."
+                            value={shortDesc}
+                            onChange={(e) => setShortDesc(e.target.value)}
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-charcoal"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">উপন্যাসের সম্পূর্ণ সিনপসিস (পটভূমি):</label>
+                            {longDesc && (
+                              <button
+                                type="button"
+                                onClick={() => setLongDesc(fixBijoyText(longDesc))}
+                                className="text-[10px] text-brand-gold hover:underline font-bold font-sans-bengali flex items-center gap-0.5 cursor-pointer"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" /> বিজয় ঠিক করুন 🪄
+                              </button>
+                            )}
+                          </div>
+                          <textarea
+                            rows={4}
+                            value={longDesc}
+                            onChange={(e) => setLongDesc(e.target.value)}
+                            placeholder="গল্পের মূল প্রেক্ষাপট..."
+                            className="w-full bg-white border border-neutral-200 rounded-2xl py-2 px-3 text-brand-charcoal text-xs font-serif-bengali focus:outline-none focus:border-brand-charcoal resize-none leading-relaxed"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Chapters Section */}
+                      <div className="space-y-4 border-t border-black/[0.06] pt-4">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-neutral-700 font-sans-bengali">
+                            উপন্যাসের অধ্যায়সমূহ ({chapters.length}টি অধ্যায়)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleAddChapter}
+                            className="text-[11px] bg-brand-charcoal text-brand-gold py-1 px-3 rounded-xl font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> আরও অধ্যায় যোগ করুন
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {chapters.map((ch, idx) => (
+                            <div key={ch.id} className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-brand-charcoal font-serif-bengali">
+                                  অধ্যায় {idx + 1}
+                                </span>
+                                {chapters.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveChapter(ch.id)}
+                                    className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Trash className="w-3.5 h-3.5" /> বাদ দিন
+                                  </button>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                value={ch.title}
+                                onChange={(e) => handleChapterTitleChange(ch.id, e.target.value)}
+                                placeholder="যেমন: ১. ঝড়ের প্রথম স্পর্শ"
+                                className="w-full bg-neutral-50 rounded-xl py-2 px-3 text-xs font-bold font-serif-bengali text-brand-charcoal focus:outline-none"
+                              />
+                              <textarea
+                                rows={8}
+                                value={ch.content}
+                                onChange={(e) => handleChapterContentChange(ch.id, e.target.value)}
+                                placeholder="এই অধ্যায়ের মূল গল্প লিখুন..."
+                                className="w-full bg-neutral-50 rounded-xl py-2.5 px-3 text-xs font-serif-bengali text-brand-charcoal focus:outline-none leading-relaxed"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-4 border-t border-black/[0.06]">
+                        <button
+                          type="submit"
+                          className="flex-1 bg-brand-charcoal text-brand-gold hover:bg-black py-3.5 rounded-2xl text-xs font-bold font-sans-bengali flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                        >
+                          <Check className="w-4 h-4 text-brand-gold" />
+                          {activeTab === "create" ? "সাহিত্য সংকলন উম্মোচন করুন" : "পরিপত্র সেভ করুন"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { resetBookForm(); setActiveTab("list"); }}
+                          className="px-6 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-xs rounded-2xl font-sans-bengali transition-colors cursor-pointer"
+                        >
+                          বাতিল
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+              </main>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

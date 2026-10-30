@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Book } from "./types";
-import { BOOK_DATA, NOVELIST_BIO, NOVELIST_NAME, NOVELIST_AVATAR } from "./data";
+import { Book, AppItem } from "./types";
+import { BOOK_DATA, NOVELIST_BIO, NOVELIST_NAME, NOVELIST_AVATAR, DEFAULT_APPS } from "./data";
 import Navbar from "./components/Navbar";
 import BookCard from "./components/BookCard";
 import ReadingApp from "./components/ReadingApp";
@@ -9,10 +9,11 @@ import AdminDashboard from "./components/AdminDashboard";
 import Footer from "./components/Footer";
 import BookDetailsPage from "./pages/BookDetailsPage";
 import PremiumPage from "./pages/PremiumPage";
+import AppsPage from "./pages/AppsPage";
 import { motion, AnimatePresence } from "motion/react";
-import { BookOpen, Star, Award, Search, Sparkles, ArrowRight } from "lucide-react";
+import { BookOpen, Star, Award, Search, Sparkles, ArrowRight, Smartphone, Download, CheckCircle2, ShieldCheck } from "lucide-react";
 import { db } from "./firebase";
-import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, increment } from "firebase/firestore";
 
 export default function App() {
   const location = useLocation();
@@ -42,12 +43,36 @@ export default function App() {
   const [genreFilter, setGenreFilter] = useState<string>("সব বিভাগ");
 
   const [books, setBooks] = useState<Book[]>([]);
+  const [apps, setApps] = useState<AppItem[]>(() => {
+    const saved = localStorage.getItem("gob_apps_catalog");
+    return saved ? JSON.parse(saved) : DEFAULT_APPS;
+  });
 
+  // Realtime Books from Firestore
   useEffect(() => {
     const q = query(collection(db, "books"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const dbBooks = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Book));
       setBooks(dbBooks.length > 0 ? dbBooks : BOOK_DATA);
+    }, (err) => {
+      console.warn("Firestore books error:", err);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Realtime Apps from Firestore
+  useEffect(() => {
+    const q = query(collection(db, "apps"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const dbApps = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AppItem));
+      if (dbApps.length > 0) {
+        setApps(dbApps);
+        localStorage.setItem("gob_apps_catalog", JSON.stringify(dbApps));
+      } else {
+        setApps(DEFAULT_APPS);
+      }
+    }, (err) => {
+      console.warn("Firestore apps error:", err);
     });
     return () => unsubscribe();
   }, []);
@@ -117,6 +142,45 @@ export default function App() {
     }
   };
 
+  // App handlers for Admin
+  const handleAddApp = async (nApp: AppItem) => {
+    try {
+      await addDoc(collection(db, "apps"), {
+        ...nApp,
+        createdAt: new Date()
+      });
+    } catch (e) {
+      console.error("Error adding app to Firestore: ", e);
+      const updated = [nApp, ...apps];
+      setApps(updated);
+      localStorage.setItem("gob_apps_catalog", JSON.stringify(updated));
+    }
+  };
+
+  const handleUpdateApp = async (uApp: AppItem) => {
+    try {
+      const appRef = doc(db, "apps", uApp.id);
+      await updateDoc(appRef, { ...uApp });
+    } catch (e) {
+      console.error("Error updating app: ", e);
+      const updated = apps.map(a => a.id === uApp.id ? uApp : a);
+      setApps(updated);
+      localStorage.setItem("gob_apps_catalog", JSON.stringify(updated));
+    }
+  };
+
+  const handleDeleteApp = async (id: string) => {
+    try {
+      const appRef = doc(db, "apps", id);
+      await deleteDoc(appRef);
+    } catch (e) {
+      console.error("Error deleting app: ", e);
+      const updated = apps.filter(a => a.id !== id);
+      setApps(updated);
+      localStorage.setItem("gob_apps_catalog", JSON.stringify(updated));
+    }
+  };
+
   const catalogBooks = books.length > 0 ? books : BOOK_DATA;
 
   // Filter & Search Engine
@@ -137,6 +201,8 @@ export default function App() {
     setSelectedBook(book);
     navigateToPage(`book/${book.id}`);
   };
+
+  const featuredApp = apps[0] || DEFAULT_APPS[0];
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#FBFBFA] text-[#111111]" id="platform-root-viewport">
@@ -166,7 +232,7 @@ export default function App() {
                 </h1>
 
                 <p className="text-sm md:text-base text-neutral-600 font-sans-bengali font-light max-w-lg mx-auto lg:mx-0 leading-relaxed">
-                  সবগুলো উপন্যাস এখন সম্পূর্ণ বিনামূল্যে ও বিজ্ঞাপনমুক্ত পরিবেশে উপভোগ করুন।
+                  সবগুলো উপন্যাস এবং মোবাইল অ্যাপ্লিকেশন এখন সম্পূর্ণ বিনামূল্যে ও বিজ্ঞাপনমুক্ত পরিবেশে উপভোগ করুন।
                 </p>
 
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
@@ -175,6 +241,13 @@ export default function App() {
                     className="w-full sm:w-auto bg-brand-charcoal hover:bg-black text-brand-gold text-xs md:text-sm font-bold py-4 px-8 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <BookOpen className="w-4 h-4 text-brand-gold" /> উপন্যাসসমূহ পড়ুন
+                  </button>
+
+                  <button 
+                    onClick={() => navigateToPage("apps")}
+                    className="w-full sm:w-auto bg-white hover:bg-neutral-50 text-brand-charcoal text-xs md:text-sm font-bold py-4 px-7 rounded-2xl shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4 text-brand-gold" /> অ্যাপস ডাউনলোড
                   </button>
                 </div>
               </div>
@@ -188,7 +261,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* Homepage: Show ONLY SOME books (e.g., first 2 books), NO ALL */}
+            {/* Homepage: Show ONLY SOME books (first 2 books), NO ALL */}
             <section className="px-6 py-16 max-w-5xl mx-auto">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-black font-serif-bengali text-brand-charcoal">নির্বাচিত উপন্যাস</h2>
@@ -213,6 +286,55 @@ export default function App() {
                 ))}
               </div>
             </section>
+
+            {/* Official Mobile App Showcase Section */}
+            {featuredApp && (
+              <section className="px-6 py-12 max-w-5xl mx-auto">
+                <div className="bg-white rounded-3xl p-8 md:p-12 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden bg-brand-charcoal/5 flex items-center justify-center shadow-xs shrink-0">
+                      {featuredApp.iconUrl && (featuredApp.iconUrl.startsWith("http") || featuredApp.iconUrl.startsWith("/uploads") || featuredApp.iconUrl.startsWith("data:image")) ? (
+                        <img src={featuredApp.iconUrl} alt={featuredApp.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Smartphone className="w-10 h-10 text-brand-charcoal" />
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-gold/15 text-brand-charcoal">
+                          {featuredApp.category || "অ্যান্ড্রয়েড APK"}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
+                          {featuredApp.version}
+                        </span>
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-bold font-serif-bengali text-brand-charcoal">
+                        {featuredApp.name}
+                      </h3>
+                      <p className="text-xs text-neutral-500 font-sans-bengali max-w-md">
+                        {featuredApp.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto shrink-0">
+                    <button
+                      onClick={() => navigateToPage("apps")}
+                      className="w-full sm:w-auto bg-brand-charcoal hover:bg-black text-brand-gold text-xs font-bold py-3.5 px-6 rounded-2xl flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+                    >
+                      <Download className="w-4 h-4 text-brand-gold" />
+                      অ্যাপ ডাউনলোড করুন
+                    </button>
+                    <button
+                      onClick={() => navigateToPage("apps")}
+                      className="w-full sm:w-auto bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-xs font-bold py-3.5 px-5 rounded-2xl transition-all cursor-pointer"
+                    >
+                      সব অ্যাপস ({apps.length})
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
           </motion.div>
         ) : currentPage === "read" ? (
           <motion.div
@@ -269,6 +391,8 @@ export default function App() {
               ))}
             </div>
           </motion.div>
+        ) : currentPage === "apps" ? (
+          <AppsPage apps={apps} />
         ) : currentPage === "premium" ? (
           <PremiumPage 
             books={catalogBooks}
@@ -293,6 +417,10 @@ export default function App() {
             onAddBook={handleAddBook}
             onUpdateBook={handleUpdateBook}
             onDeleteBook={handleDeleteBook}
+            apps={apps}
+            onAddApp={handleAddApp}
+            onUpdateApp={handleUpdateApp}
+            onDeleteApp={handleDeleteApp}
             authorBio={authorBio}
             onUpdateAuthorBio={handleUpdateAuthorBio}
             paymentRequests={[]}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookOpen, Award, Home, MoreVertical, X, Sparkles } from "lucide-react";
+import { BookOpen, Award, Home, MoreVertical, X, Sparkles, Smartphone } from "lucide-react";
 
 interface NavbarProps {
   navigateToPage: (page: string) => void;
@@ -26,6 +26,7 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
   const menuItems = [
     { id: "home", label: "হোম", icon: Home },
     { id: "read", label: "উপন্যাস", icon: BookOpen },
+    { id: "apps", label: "অ্যাপস", icon: Smartphone },
     { id: "premium", label: "সংগ্রহ", icon: Award },
   ];
 
@@ -69,13 +70,13 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
           </nav>
 
           {/* Action */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center gap-3">
             <button
-              onClick={() => navigateToPage("read")}
+              onClick={() => navigateToPage("apps")}
               className="bg-brand-gold/15 hover:bg-brand-gold/25 text-brand-charcoal text-xs font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-brand-gold" />
-              পড়ুন
+              <Smartphone className="w-3.5 h-3.5 text-brand-gold" />
+              অ্যাপ ডাউনলোড
             </button>
           </div>
         </div>
@@ -89,7 +90,7 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
               initial={{ opacity: 0, scale: 0.9, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 15 }}
-              className="bg-brand-charcoal text-white rounded-2xl shadow-xl p-2 w-44 space-y-1"
+              className="bg-brand-charcoal text-white rounded-2xl shadow-xl p-2 w-48 space-y-1"
             >
               {menuItems.map((item) => {
                 const Icon = item.icon;
@@ -101,7 +102,7 @@ export default function Navbar({ navigateToPage, currentPage }: NavbarProps) {
                       navigateToPage(item.id);
                       setIsMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs ${
                       isActive ? "bg-brand-gold text-brand-charcoal font-bold" : "hover:bg-white/10 text-neutral-300"
                     }`}
                   >

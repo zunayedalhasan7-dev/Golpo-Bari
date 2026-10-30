@@ -22,6 +22,26 @@
         "date": { "type": "string" }
       },
       "required": ["bookId", "user", "rating", "comment", "date"]
+    },
+    "AppItem": {
+      "title": "AppItem",
+      "description": "Represents an application or APK available for download",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "version": { "type": "string" },
+        "size": { "type": "string" },
+        "downloadUrl": { "type": "string" },
+        "iconUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "platform": { "type": "string" },
+        "downloadsCount": { "type": "number" },
+        "releaseDate": { "type": "string" },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["name", "downloadUrl", "version", "size"]
     }
   },
   "firestore": {
@@ -32,6 +52,10 @@
     "/books/{bookId}/reviews/{reviewId}": {
       "schema": "Review",
       "description": "Reviews for a specific book"
+    },
+    "/apps/{appId}": {
+      "schema": "AppItem",
+      "description": "Uploaded applications and APK files"
     }
   }
 }
